@@ -13,11 +13,11 @@ Open in VS Code and edit name etc in environment.yml
 
 Create env from environment.yml (conda env create -f environment.yml then conda activate name in environment.yml )
 
-Select interpreter + kernel in VS Code
+Select interpreter + kernel in VS Code (python:select interpreter)
 
-Put raw data outside git (or in ignored data/)
+Rename src/package
 
-Start work in src/ + notebooks/ + scripts/
+Start work in src/ + notebooks/ + scripts/ (set kernel)
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
