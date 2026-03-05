@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store
+
+# Data / outputs
+data/
+outputs/
+results/
+*.tif
+*.tiff
+*.h5
+*.zarr

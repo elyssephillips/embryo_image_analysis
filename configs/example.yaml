@@ -1,0 +1,13 @@
+project:
+  name: "my-project"
+
+paths:
+  raw_data_dir: "/path/to/raw"
+  output_dir: "outputs"
+
+datasets:
+  microscopy:
+    voxel_size_zyx: [1.0, 0.2, 0.2]  # change per dataset
+    channels:
+      dapi: 0
+      gfp: 1
