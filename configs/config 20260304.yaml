@@ -1,0 +1,41 @@
+
+name: "FGF TE Patterning IF"
+
+
+raw_data_dir: "/Users/elyssephillips/Desktop/2026-03-04_fgf_cdx2_ppmlc_gata3/tiffs"
+rotated_dir: "/Users/elyssephillips/Desktop/2026-03-04_fgf_cdx2_ppmlc_gata3/tiffs/rotated"
+segmentation_dir: "/Users/elyssephillips/Desktop/2026-03-04_fgf_cdx2_ppmlc_gata3/nucleimask/segs/cleaned"
+segmentation_dir_raw: "/Users/elyssephillips/Desktop/2026-03-04_fgf_cdx2_ppmlc_gata3/nucleimask/segs/raw"
+output_dir: "/Users/elyssephillips/Desktop/2026-03-04_fgf_cdx2_ppmlc_gata3/analysis"
+metadata_json: "/Users/elyssephillips/Desktop/2026-03-04_fgf_cdx2_ppmlc_gata3/Cam_long_00000 (3).json"
+rotation_log: "/Users/elyssephillips/Desktop/2026-03-04_fgf_cdx2_ppmlc_gata3/analysis/rotation_log.csv"
+
+
+file_extension: ".tif"
+
+datasets: "20260304_fgf_cdx2_ppmlc_gata3"
+
+microscopy:
+  voxel_size_zyx: [0.7, 0.122666664, 0.122666664]
+  channels:
+    dapi: 0
+    gfp: 1
+    rfp: 2
+    cy5: 3
+  channel_names: ["dapi", "GATA3", "ppMLC", "CDX2"]
+
+single_file_mode: false
+
+# target_file: "" #only use if single_file_mode is true
+
+
+#Quality check
+exclusions:
+  c002: "ICM is on bottom of image, cant rotate correctly"
+  c004: "duplicate of c002"
+  c005: "shriveled blastocyst, likely due to fixation artifact"
+  f003: "shriveled blastocyst, likely due to fixation artifact"
+
+notes:
+  foo4: "has some debris, might not be good for intensity analysis"
+  c003: "is only half the zstack, but should be fine for patterning analysis"

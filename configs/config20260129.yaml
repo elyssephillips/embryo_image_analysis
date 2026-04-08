@@ -1,0 +1,34 @@
+
+name: "FGF TE Patterning IF"
+
+
+raw_data_dir: "/Users/elyssephillips/Desktop/20260129_fgf_cdx2_ppmlc_gata3/tifs"
+rotated_dir: "/Users/elyssephillips/Desktop/20260129_fgf_cdx2_ppmlc_gata3/tifs/rotated"
+segmentation_dir: "/Users/elyssephillips/Desktop/20260129_fgf_cdx2_ppmlc_gata3/seg/cleaned"
+output_dir: "/Users/elyssephillips/Desktop/20260129_fgf_cdx2_ppmlc_gata3/analysis"
+metadata_json: "/Users/elyssephillips/Desktop/20260129_fgf_cdx2_ppmlc_gata3/Cam_long_00000 (3).json"
+rotation_log: "/Users/elyssephillips/Desktop/20260129_fgf_cdx2_ppmlc_gata3/analysis/rotation_log.csv"
+
+
+file_extension: ".tif"
+
+datasets: "20260129_fgf_cdx2_ppmlc_gata3"
+
+microscopy:
+  voxel_size_zyx: [0.7, 0.122666664, 0.122666664]
+  channels:
+    dapi: 0
+    gfp: 1
+    rfp: 2
+    cy5: 3
+  channel_names: ["dapi", "GATA3", "ppMLC", "CDX2"]
+
+single_file_mode: false
+
+# target_file: "" #only use if single_file_mode is true
+
+
+#Quality check
+exclusions: {}
+
+

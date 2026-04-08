@@ -1,13 +1,25 @@
 project:
-  name: "my-project"
+  name: "FGF TE Patterning IF"
+
 
 paths:
-  raw_data_dir: "/path/to/raw"
-  output_dir: "outputs"
+  raw_data_dir: "/Users/elyssephillips/Desktop/20260129_fgf_cdx2_ppmlc_gata3/tifs"
+  segmentation_dir: "/Users/elyssephillips/Desktop/20260129_fgf_cdx2_ppmlc_gata3/seg/cleaned"
+  output_dir: "/Users/elyssephillips/Desktop/20260129_fgf_cdx2_ppmlc_gata3/analysis"
 
-datasets:
+file_extension: ".tif"
+
+datasets: 20260129_fgf_cdx2_ppmlc_gata3
   microscopy:
-    voxel_size_zyx: [1.0, 0.2, 0.2]  # change per dataset
+    voxel_size_zyx: [0.8, 0.122666664, 0.122666664]  # change per dataset
     channels:
       dapi: 0
       gfp: 1
+      rfp: 2
+      cy5: 3
+
+    channel_names: ["dapi", "GATA3", "ppMLC", "CDX2"]
+
+single_file_mode: false
+
+# target_file: "" #only use if single_file_mode is true

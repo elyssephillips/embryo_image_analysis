@@ -1,4 +1,4 @@
-name: project-env
+name: fixed_nucleifluorescence
 channels:
   - conda-forge
 dependencies:
@@ -10,6 +10,11 @@ dependencies:
   - scikit-image
   - jupyterlab
   - ipykernel
+  - napari
+  - seaborn
+  - pypaml
+  - scikit-learn
+
   - pip:
       - ruff
       - black
