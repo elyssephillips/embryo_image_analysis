@@ -9,13 +9,15 @@ Clone your new repo (cd ~/projects
 git clone https://github.com/elyssephillips/<new-repo-name>.git
 cd <new-repo-name>)
 
-Create env from environment.yml
+Open in VS Code and edit name etc in environment.yml
 
-Select interpreter + kernel in VS Code
+Create env from environment.yml (conda env create -f environment.yml then conda activate name in environment.yml )
 
-Put raw data outside git (or in ignored data/)
+Select interpreter + kernel in VS Code (python:select interpreter)
 
-Start work in src/ + notebooks/ + scripts/
+Rename src/package
+
+Start work in src/ + notebooks/ + scripts/ (set kernel)
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
