@@ -120,7 +120,21 @@ def run_full_analysis():
     print(f"Summary CSV saved to: {csv_path}")
 
     dataset_name = output_dir.parent.name
-    update_master_study_log(stat_df, dataset_name)
+    dataset_description = config.get('name', dataset_name)
+    config_file = "configs/config.yaml"
+    analysis_version = config.get('analysis_version', "")
+    notes = config.get('description', "")
+
+    update_master_study_log(
+        stat_df,
+        dataset_name,
+        project_name="IF",
+        pipeline_name="IF",
+        dataset_description=dataset_description,
+        config_file=config_file,
+        analysis_version=analysis_version,
+        notes=notes,
+    )
 
     # 6. GROUP STATS & BOXPLOTS
     controls = stat_df[stat_df['group'] == 'Control']

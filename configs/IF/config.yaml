@@ -1,0 +1,39 @@
+name: "FGF TE Patterning IF"
+
+raw_data_dir: "/mnt/md1/elysse/20260326_fgf_cdx2_gata3_ppmlc/cropped"
+rotated_dir: "/mnt/md1/elysse/20260326_fgf_cdx2_gata3_ppmlc/cropped/rotated"
+segmentation_dir: "/path/to/your/pipeline/nucleimask/cleaned"
+segmentation_dir_raw: "/path/to/your/pipeline/nucleimask"
+output_dir: "/mnt/md1/elysse/20260326_fgf_cdx2_gata3_ppmlc/analysis"
+metadata_json: "/mnt/md1/elysse/20260326_fgf_cdx2_gata3_ppmlc/raw/stack_0_channel_0-DAPI_obj_bottom/Cam_short_00000.json"
+rotation_log: "/path/to/your/pipeline/analysis/rotation_log.csv"
+
+file_extension: ".tif"
+
+datasets: "20260326_fgf_cdx2_gata3_ppmlc"
+
+microscopy:
+  voxel_size_zyx: [0.8, 0.122666664, 0.122666664]
+  channels:
+    dapi: 0
+    gfp: 1
+    rfp: 2
+    cy5: 3
+  channel_names: ["dapi", "GATA3", "ppMLC", "CDX2"]
+
+single_file_mode: false
+
+# Optional HDF5 conversion settings. Add these to the same config file for a pipeline-style setup.
+h5_conversion:
+  root_dir: "/mnt/md1/elysse/20260326_fgf_cdx2_gata3_ppmlc/raw"
+  dataset_path: null  # optional HDF5 dataset path, e.g. "/images/data"
+  #output_dir: "/path/to/your/pipeline/raw_tiffs"  # optional, else raw_data_dir is used
+  #pipeline_config: "configs/IF/config20260218.yaml"  # optional if you want output_dir from pipeline config
+
+  auto_crop: true
+  auto_crop_threshold: 300  # min pixel value counted as signal; increase (e.g. 200) to skip background noise
+  auto_crop_channel: 0      # channel index to use for crop bounds (null = all channels; 0 = DAPI)
+  pad: 50
+  crop: null  # manual crop: y0:y1:x0:x1 or z0:z1:y0:y1:x0:x1
+  dtype: "float32"
+  confirm_autocrop: true
