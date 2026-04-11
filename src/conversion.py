@@ -304,6 +304,24 @@ def compute_autocrop_bounds_streaming(
             "Auto-crop found no signal. Try lowering threshold or threshold_percentile."
         )
 
+    # Reduce to the largest connected component so that isolated bright pixels
+    # outside the embryo don't drag the bounding box to the image edges.
+    try:
+        from scipy.ndimage import label as _label
+        labeled, n_components = _label(union_yx)
+        if n_components > 1:
+            sizes = np.bincount(labeled.ravel())[1:]  # index 0 = background
+            largest = int(np.argmax(sizes)) + 1
+            kept_frac = sizes[largest - 1] / union_yx.sum()
+            print(
+                f"  Found {n_components} signal components; keeping largest "
+                f"({sizes[largest - 1]:,} px, {kept_frac:.0%} of signal).",
+                flush=True,
+            )
+            union_yx = labeled == largest
+    except ImportError:
+        print("  scipy not available; skipping connected-component filtering.", flush=True)
+
     y_any = union_yx.any(axis=1)
     x_any = union_yx.any(axis=0)
 

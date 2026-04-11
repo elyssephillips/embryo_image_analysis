@@ -22,6 +22,7 @@ from src.conversion import (
     _get_h5_dataset,
 )
 import h5py  # used directly for the manual-crop Z-extent lookup
+import yaml
 
 
 def main():
@@ -128,6 +129,8 @@ def main():
     dtype = args.dtype or get_config_value(h5_config, ["dtype"], "float32")
     channel_names = get_config_value(config, ["microscopy", "channel_names"])
     auto_crop_threshold = get_config_value(h5_config, ["auto_crop_threshold"], 0)
+    auto_crop_threshold_percentile = get_config_value(h5_config, ["auto_crop_threshold_percentile"], None)
+    auto_crop_blur_sigma = get_config_value(h5_config, ["auto_crop_blur_sigma"], 0)
     auto_crop_channel = get_config_value(h5_config, ["auto_crop_channel"], None)
 
     if output_dir is None and pipeline_config_path is not None:
@@ -149,6 +152,15 @@ def main():
             )
 
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Load per-stack crop overrides written by inspect_crop_bounds.py
+    overrides_path = config_path.parent / "crop_overrides.yaml" if config_path else None
+    crop_overrides: dict = {}
+    if overrides_path and overrides_path.exists():
+        with open(overrides_path) as _f:
+            crop_overrides = yaml.safe_load(_f) or {}
+        print(f"Loaded crop overrides for {len(crop_overrides)} stack(s) from {overrides_path}")
+
     groups = build_stack_groups(root_dir)
     if not groups:
         raise ValueError(f"No channel folders found under {args.root_dir}. Check folder naming.")
@@ -197,10 +209,39 @@ def main():
         # ------------------------------------------------------------------
         # Determine crop bounds — all reads are one Z-slice at a time so the
         # peak in-memory footprint is a single (Y, X) plane (~21 MB here).
+        #
+        # crops_to_write: list of (output_stem, crop_bounds_or_None)
+        # Multiple entries arise when inspect_crop_bounds saved several boxes
+        # for the same stack (e.g. two embryos in one field of view).
         # ------------------------------------------------------------------
-        crop_bounds = None  # (z0, z1, y0, y1, x0, x1) or None
+        stack_entry = crop_overrides.get(stack_id) or {}
+        override_crops_list = stack_entry.get("crops")   # list of crop strings
+        override_crop_str   = stack_entry.get("crop")    # single crop string
 
-        if auto_crop:
+        def _parse_crop_str(cs):
+            spec = parse_crop_arg(cs)
+            if len(spec) == 6:
+                return tuple(spec)
+            y0o, y1o, x0o, x1o = spec
+            with h5py.File(channel_h5_files[0], "r") as _f:
+                nzo, _, _ = _effective_zyx_shape(_get_h5_dataset(_f, dataset_path))
+            return (0, nzo, y0o, y1o, x0o, x1o)
+
+        if override_crops_list:
+            crops_to_write = []
+            for idx, cs in enumerate(override_crops_list, 1):
+                bounds = _parse_crop_str(cs)
+                z0, z1, y0, y1, x0, x1 = bounds
+                print(f"  Embryo {idx}: z={z0}:{z1}, y={y0}:{y1}, x={x0}:{x1}", flush=True)
+                crops_to_write.append((f"{stack_id}_embryo{idx}", bounds))
+
+        elif override_crop_str:
+            bounds = _parse_crop_str(override_crop_str)
+            z0, z1, y0, y1, x0, x1 = bounds
+            print(f"  Using manual override: z={z0}:{z1}, y={y0}:{y1}, x={x0}:{x1}", flush=True)
+            crops_to_write = [(stack_id, bounds)]
+
+        elif auto_crop:
             if auto_crop_channel is not None:
                 crop_files = [channel_h5_files[auto_crop_channel]]
                 ch_label = (channel_names[auto_crop_channel]
@@ -212,7 +253,9 @@ def main():
                 print(f"  Auto-cropping all channels (threshold={auto_crop_threshold})...", flush=True)
             bounds = compute_autocrop_bounds_streaming(
                 crop_files, dataset_path, pad=pad,
-                threshold=auto_crop_threshold,
+                threshold=auto_crop_threshold or 0,
+                threshold_percentile=auto_crop_threshold_percentile,
+                blur_sigma=auto_crop_blur_sigma,
             )
             z0, z1, y0, y1, x0, x1 = bounds
             print(f"  Crop bounds: z={z0}:{z1}, y={y0}:{y1}, x={x0}:{x1}", flush=True)
@@ -231,7 +274,7 @@ def main():
                     print(f"Skipped saving {stack_id} because auto-crop was not approved.")
                     continue
 
-            crop_bounds = bounds
+            crops_to_write = [(stack_id, bounds)]
 
         elif crop:
             crop_spec = parse_crop_arg(crop)
@@ -239,17 +282,22 @@ def main():
                 y0c, y1c, x0c, x1c = crop_spec
                 with h5py.File(channel_h5_files[0], "r") as _f:
                     nz, _, _ = _effective_zyx_shape(_get_h5_dataset(_f, dataset_path))
-                crop_bounds = (0, nz, y0c, y1c, x0c, x1c)
+                bounds = (0, nz, y0c, y1c, x0c, x1c)
             else:
-                crop_bounds = tuple(crop_spec)
+                bounds = tuple(crop_spec)
+            crops_to_write = [(stack_id, bounds)]
+
+        else:
+            crops_to_write = [(stack_id, None)]
 
         # ------------------------------------------------------------------
         # Write: streams one (Y, X) slice at a time from h5py to tifffile.
         # Peak memory ≈ one Z-plane regardless of number of channels or depth.
         # ------------------------------------------------------------------
-        output_path = output_dir / f"{stack_id}_combined.tif"
-        print(f"  Writing TIFF → {output_path}", flush=True)
-        write_tiff_czyx_streaming(output_path, channel_h5_files, dataset_path, dtype, crop_bounds)
+        for out_stem, crop_bounds in crops_to_write:
+            output_path = output_dir / f"{out_stem}.tif"
+            print(f"  Writing TIFF → {output_path}", flush=True)
+            write_tiff_czyx_streaming(output_path, channel_h5_files, dataset_path, dtype, crop_bounds)
         print(f"  Done. [{stack_num}/{n_stacks}]", flush=True)
 
 

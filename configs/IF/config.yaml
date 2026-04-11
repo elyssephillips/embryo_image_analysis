@@ -31,9 +31,11 @@ h5_conversion:
   #pipeline_config: "configs/IF/config20260218.yaml"  # optional if you want output_dir from pipeline config
 
   auto_crop: true
-  auto_crop_threshold: 300  # min pixel value counted as signal; increase (e.g. 200) to skip background noise
-  auto_crop_channel: 0      # channel index to use for crop bounds (null = all channels; 0 = DAPI)
-  pad: 50
+  auto_crop_channel: 0           # channel index for crop bounds (null = all channels; 0 = DAPI)
+  auto_crop_threshold: null      # absolute intensity cutoff (null = use threshold_percentile instead)
+  auto_crop_threshold_percentile: 90  # percentile of the DAPI MIP to use as threshold (70 = keep top 30%)
+  auto_crop_blur_sigma: 10       # gaussian blur applied to MIP before thresholding (smooths patchy signal)
+  pad: 20
   crop: null  # manual crop: y0:y1:x0:x1 or z0:z1:y0:y1:x0:x1
   dtype: "float32"
   confirm_autocrop: true
