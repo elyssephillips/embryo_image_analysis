@@ -109,7 +109,7 @@ def inspect_stack(
     source = f"override: {existing_override}" if existing_override else "auto-crop"
     fig.suptitle(
         f"{stack_id}  [{source}]\n"
-        "Drag to draw crop  |  A = add box  |  Enter = accept  |  S = skip  |  Q = quit",
+        "Drag to draw crop  |  A = add box  |  E/Enter = save  |  S = skip  |  Q = quit",
         fontsize=9,
     )
 
@@ -202,7 +202,7 @@ def inspect_stack(
         key = event.key
         if key in ("a", "A"):
             _add_current()
-        elif key in ("enter", " "):
+        elif key in ("enter", "e", "E"):
             result["action"] = "accept"
             plt.close(fig)
         elif key in ("s", "S"):
@@ -218,14 +218,16 @@ def inspect_stack(
 
     action = result.get("action", "skip")
 
-    # Build the crops_list to return
+    # Build the crops_list to return.
+    # Auto-flush any currently-drawn (lime) box so that the workflow
+    # "draw box1 → A → draw box2 → Enter" saves both boxes, not just box1.
     if action == "accept":
+        if state["new_yx"] is not None:
+            added_crops.append(state["new_yx"])
         if added_crops:
-            crops_list = added_crops          # explicitly added via A
-        elif state["new_yx"] is not None:
-            crops_list = [state["new_yx"]]    # single drawn box, Enter pressed directly
+            crops_list = added_crops
         else:
-            crops_list = None                 # nothing drawn → accept auto bounds
+            crops_list = None   # nothing drawn → accept auto bounds
     else:
         crops_list = None
 
@@ -304,7 +306,7 @@ def main():
         print(f"\n{len(bad_stacks)} stack(s) have channel mismatches and will be skipped.\n")
 
     print(f"Found {len(stack_ids)} stack(s) ({len(bad_stacks)} skipped).  Overrides already saved: {sorted(overrides)}\n")
-    print("Controls: drag left-click to draw crop box | A = add box | Enter = accept | S = skip | Q = quit\n")
+    print("Controls: drag to draw crop box | A = add box | E/Enter = save | S = skip | Q = quit\n")
 
     for i, stack_id in enumerate(stack_ids, 1):
         if stack_id in bad_stacks:

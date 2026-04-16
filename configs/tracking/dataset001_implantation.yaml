@@ -1,0 +1,44 @@
+project:
+  name: "Dataset001 Implantation — Nuclei Tracking"
+  dataset_id: "control_2"
+
+paths:
+  # Raw fluorescence tiffs (one 3D tiff per timepoint)
+  raw_dir: "/mnt/md1/elysse/nuclei segmentation/cropped/"
+  raw_glob: "Cam_long_*.tif"
+
+  # Instance-segmented label tiffs (one 3D tiff per timepoint, post-reclassification)
+  label_dir: "/mnt/md1/elysse/nuclei segmentation/edit/"
+  label_glob: "*_instances_reclassified.tif"
+
+  # Track-relabeled 4D TIFF: voxel value = track_id + 1 (consistent identity across time)
+  track_labels_tiff: "/mnt/md1/elysse/code/tracking/track_labels_linked_c23.tif"
+
+  # Input: curated track CSVs from btrack / link_tracks pipeline
+  tracks_dir: "/mnt/md1/elysse/code/tracking/"
+
+  # Output: analysis results (CSVs, plots) — created automatically if it doesn't exist
+  output_dir: "/mnt/md1/elysse/code/embryo_image_analysis/results/tracking/control_2"
+
+microscopy:
+  n_timepoints: 101
+  voxel_size_zyx: [2.0, 0.208, 0.208]   # µm per step/pixel
+
+tracking:
+  # Which version of the tracks CSV to load and what to save as
+  input_version: "linked_c23"   # tracks_{input_version}.csv
+  output_version: "linked_c24"  # tracks_{output_version}.csv
+
+  # Timepoints of interest (curated range)
+  t_start: 17
+  t_end: 100
+
+  frame_interval_min: 15   # minutes between timepoints
+  min_track_length: 5      # minimum frames required for motion analysis
+
+motion:
+  msd:
+    max_lag_fraction: 0.5   # fit MSD over first 50% of each track's length
+    min_lags_for_fit: 4     # minimum lag points required to fit alpha
+  flow_field:
+    k_neighbors: 6          # nearest spatial neighbors for local flow estimate

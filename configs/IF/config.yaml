@@ -1,31 +1,31 @@
 name: "FGF TE Patterning IF"
 
-raw_data_dir: "/mnt/md1/elysse/20260326_fgf_cdx2_gata3_ppmlc/cropped"
-rotated_dir: "/mnt/md1/elysse/20260326_fgf_cdx2_gata3_ppmlc/cropped/rotated"
-segmentation_dir: "/path/to/your/pipeline/nucleimask/cleaned"
-segmentation_dir_raw: "/path/to/your/pipeline/nucleimask"
-output_dir: "/mnt/md1/elysse/20260326_fgf_cdx2_gata3_ppmlc/analysis"
-metadata_json: "/mnt/md1/elysse/20260326_fgf_cdx2_gata3_ppmlc/raw/stack_0_channel_0-DAPI_obj_bottom/Cam_short_00000.json"
-rotation_log: "/path/to/your/pipeline/analysis/rotation_log.csv"
+raw_data_dir: "/mnt/md1/elysse/20260409_fgf_zo1_dmkn_fmnl2/cropped"
+rotated_dir: "/mnt/md1/elysse/20260409_fgf_zo1_dmkn_fmnl2/cropped/rotated"
+segmentation_dir: "/mnt/md1/elysse/20260409_fgf_zo1_dmkn_fmnl2/nucleimask/cleaned"
+segmentation_dir_raw: "/mnt/md1/elysse/20260409_fgf_zo1_dmkn_fmnl2/nucleimask"
+output_dir: "/mnt/md1/elysse/20260409_fgf_zo1_dmkn_fmnl2/analysis"
+metadata_json: "/mnt/md1/elysse/20260409_fgf_zo1_dmkn_fmnl2/raw/stack_0_channel_0-DAPI_obj_bottom/Cam_short_00000.json"
+rotation_log: "/mnt/md1/elysse/20260409_fgf_zo1_dmkn_fmnl2/analysis/rotation_log.csv"
 
 file_extension: ".tif"
 
-datasets: "20260326_fgf_cdx2_gata3_ppmlc"
+datasets: "20260409_fgf_zo1_dmkn_fmnl2"
 
 microscopy:
-  voxel_size_zyx: [0.8, 0.122666664, 0.122666664]
+  voxel_size_zyx: [1.0, 0.122666664, 0.122666664]
   channels:
     dapi: 0
     gfp: 1
     rfp: 2
     cy5: 3
-  channel_names: ["dapi", "GATA3", "ppMLC", "CDX2"]
+  channel_names: ["dapi", "zo1", "dmkn", "fmnl2"]
 
 single_file_mode: false
 
 # Optional HDF5 conversion settings. Add these to the same config file for a pipeline-style setup.
 h5_conversion:
-  root_dir: "/mnt/md1/elysse/20260326_fgf_cdx2_gata3_ppmlc/raw"
+  root_dir: "/mnt/md1/elysse/2026-04-09_125407/raw"
   dataset_path: null  # optional HDF5 dataset path, e.g. "/images/data"
   #output_dir: "/path/to/your/pipeline/raw_tiffs"  # optional, else raw_data_dir is used
   #pipeline_config: "configs/IF/config20260218.yaml"  # optional if you want output_dir from pipeline config
