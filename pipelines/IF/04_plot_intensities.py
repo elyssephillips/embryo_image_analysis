@@ -8,6 +8,7 @@ from datetime import datetime
 from scipy.stats import pearsonr, linregress, ttest_ind
 from src.io import load_config, update_master_study_log
 from src.analysis import normalize_by_dapi, map_values_to_labels, calculate_patterning_score
+from src.log import log_run
 
 
 def run_full_analysis():
@@ -173,3 +174,8 @@ def run_full_analysis():
 
 if __name__ == "__main__":
     run_full_analysis()
+    config = load_config()
+    dataset_id = Path(config['output_dir']).parts[-2]
+    log_run("IF", dataset_id, "04_plot_intensities.py",
+            output_path=config['output_dir'], detail="detailed",
+            data_path=config.get('raw_data_dir', config['output_dir']))

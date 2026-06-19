@@ -12,6 +12,174 @@ import yaml
 
 FOLDER_RE = re.compile(r"^(stack_[^_]+)_channel_(\d+)(?:-(.+))?$", re.IGNORECASE)
 
+# Live-imaging folders: stack_N[-label]_channel_M[_suffix] where the label may
+# contain spaces/dashes but no underscores (e.g. "stack_1-control plus fgf_channel_0_obj_bottom").
+LIVE_FOLDER_RE = re.compile(r"^(stack_.+?)_channel_(\d+)(?:[_-](.+))?$", re.IGNORECASE)
+
+
+def parse_live_folder_name(folder_name: str):
+    match = LIVE_FOLDER_RE.match(folder_name)
+    if not match:
+        return None
+    stack_id = match.group(1)
+    channel_index = int(match.group(2))
+    suffix = match.group(3) or ""
+    return stack_id, channel_index, suffix
+
+
+def find_h5_files_sorted(folder: Path) -> list[Path]:
+    """Return all .h5/.hdf5 files in *folder* sorted by filename (= timepoint order)."""
+    files = sorted(
+        set(folder.glob("*.h5")) | set(folder.glob("*.hdf5")),
+        key=lambda p: p.name,
+    )
+    if not files:
+        raise FileNotFoundError(f"No .h5/.hdf5 files found in: {folder}")
+    return files
+
+
+def build_live_stack_groups(root_dir: Path) -> Dict[str, list[tuple[int, Path]]]:
+    """Group channel folders by stack (embryo) for live-imaging data.
+
+    Returns {stack_id: [(channel_index, folder), ...]} sorted by channel index.
+    """
+    groups: Dict[str, list[tuple[int, Path]]] = {}
+    for folder in sorted(root_dir.iterdir()):
+        if not folder.is_dir():
+            continue
+        parsed = parse_live_folder_name(folder.name)
+        if parsed is None:
+            continue
+        stack_id, channel_index, _ = parsed
+        groups.setdefault(stack_id, []).append((channel_index, folder))
+    return groups
+
+
+def write_tiff_tczyx_streaming(
+    output_path: Path,
+    channel_timepoint_files: list[list[Path]],
+    dataset_path: str | None,
+    dtype: str,
+    crop_bounds=None,
+) -> None:
+    """Write a TCZYX TIFF one (Y, X) plane at a time.
+
+    channel_timepoint_files[c][t] is the h5 file for channel c at timepoint t.
+    Page order: T outer → Z middle → C inner (ImageJ hyperstack convention).
+    Peak memory: n_channels × one (Y, X) plane regardless of T or Z depth.
+    """
+    np_dtype = np.dtype(dtype)
+    n_channels = len(channel_timepoint_files)
+    n_timepoints = len(channel_timepoint_files[0])
+
+    with h5py.File(channel_timepoint_files[0][0], "r") as f:
+        nz_full, ny_full, nx_full = _effective_zyx_shape(_get_h5_dataset(f, dataset_path))
+
+    if crop_bounds is not None:
+        cz0, cz1, cy0, cy1, cx0, cx1 = crop_bounds
+    else:
+        cz0, cz1 = 0, nz_full
+        cy0, cy1 = 0, ny_full
+        cx0, cx1 = 0, nx_full
+
+    nz = cz1 - cz0
+
+    ny = cy1 - cy0
+    nx = cx1 - cx0
+
+    imagej_desc = (
+        "ImageJ=1.11a\n"
+        f"images={n_timepoints * n_channels * nz}\n"
+        f"channels={n_channels}\n"
+        f"frames={n_timepoints}\n"
+        f"slices={nz}\n"
+        "hyperstack=true\n"
+        "mode=composite\n"
+    )
+    first_page = True
+    with tifffile.TiffWriter(str(output_path), bigtiff=True) as tif:
+        for t in range(n_timepoints):
+            if t % 10 == 0:
+                print(f"  t {t}/{n_timepoints}...", flush=True)
+            h5_handles = [
+                h5py.File(str(channel_timepoint_files[c][t]), "r")
+                for c in range(n_channels)
+            ]
+            try:
+                datasets = [_get_h5_dataset(h, dataset_path) for h in h5_handles]
+                for z in range(cz0, cz1):
+                    for ds in datasets:
+                        sl = np.asarray(
+                            _read_zslice(ds, z)[cy0:cy1, cx0:cx1], dtype=np_dtype
+                        )
+                        if first_page:
+                            tif.write(sl, contiguous=True, photometric='minisblack',
+                                      description=imagej_desc)
+                            first_page = False
+                        else:
+                            tif.write(sl, contiguous=True, photometric='minisblack')
+            finally:
+                for h in h5_handles:
+                    h.close()
+
+
+def write_tiff_per_timepoint_streaming(
+    output_dir: Path,
+    channel_timepoint_files: list[list[Path]],
+    dataset_path: str | None,
+    dtype: str,
+    crop_bounds=None,
+) -> None:
+    """Write one CZYX (or ZYX for single channel) TIFF per timepoint into output_dir.
+
+    Files are named t0000.tif, t0001.tif, etc.  Napari loads a folder of
+    same-shape TIFFs as a lazy TZYX/TCZYX stack via drag-and-drop.
+    """
+    np_dtype = np.dtype(dtype)
+    n_channels = len(channel_timepoint_files)
+    n_timepoints = len(channel_timepoint_files[0])
+
+    with h5py.File(channel_timepoint_files[0][0], "r") as f:
+        nz_full, ny_full, nx_full = _effective_zyx_shape(_get_h5_dataset(f, dataset_path))
+
+    if crop_bounds is not None:
+        cz0, cz1, cy0, cy1, cx0, cx1 = crop_bounds
+    else:
+        cz0, cz1 = 0, nz_full
+        cy0, cy1 = 0, ny_full
+        cx0, cx1 = 0, nx_full
+
+    nz = cz1 - cz0
+    ny = cy1 - cy0
+    nx = cx1 - cx0
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    for t in range(n_timepoints):
+        if t % 10 == 0:
+            print(f"  t {t}/{n_timepoints}...", flush=True)
+        vol = np.empty((n_channels, nz, ny, nx), dtype=np_dtype)
+        h5_handles = [
+            h5py.File(str(channel_timepoint_files[c][t]), "r")
+            for c in range(n_channels)
+        ]
+        try:
+            datasets = [_get_h5_dataset(h, dataset_path) for h in h5_handles]
+            for c, ds in enumerate(datasets):
+                for zi, z in enumerate(range(cz0, cz1)):
+                    vol[c, zi] = np.asarray(
+                        _read_zslice(ds, z)[cy0:cy1, cx0:cx1], dtype=np_dtype
+                    )
+        finally:
+            for h in h5_handles:
+                h.close()
+
+        out_vol = vol[0] if n_channels == 1 else vol
+        axes = "ZYX" if n_channels == 1 else "CZYX"
+        out_path = output_dir / f"t{t:04d}.tif"
+        tifffile.imwrite(str(out_path), out_vol, photometric="minisblack",
+                         metadata={"axes": axes})
+
 
 def parse_folder_name(folder_name: str):
     match = FOLDER_RE.match(folder_name)
@@ -371,36 +539,51 @@ def write_tiff_czyx_streaming(
         cx0, cx1 = 0, nx_full
 
     nz = cz1 - cz0
-    imagej_desc = (
-        "ImageJ=1.11a\n"
-        f"channels={n_channels}\n"
-        f"slices={nz}\n"
-        f"images={n_channels * nz}\n"
-        "hyperstack=true\n"
-        "mode=composite\n"
-    )
 
-    first_page = True
-    with tifffile.TiffWriter(str(output_path), bigtiff=True) as tif:
-        for ch_idx, h5_file in enumerate(channel_h5_files):
-            print(f"  Writing ch {ch_idx + 1}/{n_channels} ({nz} Z-slices)...", flush=True)
-            with h5py.File(h5_file, "r") as f:
-                ds = _get_h5_dataset(f, dataset_path)
-                nz_ch, ny_ch, nx_ch = _effective_zyx_shape(ds)
-                if (nz_ch, ny_ch, nx_ch) != (nz_full, ny_full, nx_full):
-                    raise ValueError(
-                        f"Shape mismatch: expected {(nz_full, ny_full, nx_full)}, "
-                        f"got {(nz_ch, ny_ch, nx_ch)} in {h5_file}"
-                    )
-                for z in range(cz0, cz1):
-                    if z % 50 == 0:
-                        print(f"    z {z - cz0}/{nz}", flush=True)
+    # Open all channel files up front so we can interleave channels per Z-plane.
+    # OME-TIFF (ome=True) gives napari explicit axis labels so it always splits
+    # channels correctly regardless of viewer version.
+    ny = cy1 - cy0
+    nx = cx1 - cx0
+    h5_handles = [h5py.File(str(h5_file), "r") for h5_file in channel_h5_files]
+    try:
+        datasets = []
+        for ch_idx, (h5_file, h5f) in enumerate(zip(channel_h5_files, h5_handles)):
+            ds = _get_h5_dataset(h5f, dataset_path)
+            nz_ch, ny_ch, nx_ch = _effective_zyx_shape(ds)
+            if (nz_ch, ny_ch, nx_ch) != (nz_full, ny_full, nx_full):
+                raise ValueError(
+                    f"Shape mismatch: expected {(nz_full, ny_full, nx_full)}, "
+                    f"got {(nz_ch, ny_ch, nx_ch)} in {h5_file}"
+                )
+            datasets.append(ds)
+
+        # ImageJ hyperstack description written on the first page.
+        # Pages must be in TZC order (Z-major: z0c0, z0c1, z1c0, ...) so that
+        # tifffile reconstructs the (Z, C, Y, X) series correctly on read.
+        imagej_desc = (
+            "ImageJ=1.11a\n"
+            f"images={n_channels * nz}\n"
+            f"channels={n_channels}\n"
+            f"slices={nz}\n"
+            "hyperstack=true\n"
+            "mode=composite\n"
+        )
+        first_page = True
+        with tifffile.TiffWriter(str(output_path), bigtiff=True) as tif:
+            for z in range(cz0, cz1):
+                if z % 50 == 0:
+                    print(f"  z {z - cz0}/{nz} ({n_channels} ch)...", flush=True)
+                for ds in datasets:
                     sl = np.asarray(_read_zslice(ds, z)[cy0:cy1, cx0:cx1], dtype=np_dtype)
                     if first_page:
                         tif.write(sl, contiguous=True, description=imagej_desc)
                         first_page = False
                     else:
                         tif.write(sl, contiguous=True)
+    finally:
+        for h5f in h5_handles:
+            h5f.close()
 
 
 def build_stack_groups(root_dir: Path) -> Dict[str, list[tuple[int, Path]]]:

@@ -103,18 +103,22 @@ msd_df = (
 )
 
 # Fit α per track — only tracks with enough lag points
-print('Fitting MSD α (trackpy fit_powerlaw)...')
+print('Fitting MSD α (per-track log-log polyfit)...')
 valid_tracks = imsd.columns[imsd.count() >= MIN_LAGS]
-fits_raw = tp.utils.fit_powerlaw(imsd[valid_tracks], plot=False)
-# fits_raw: index=track_id, columns=['n' (=α), 'A' (prefactor)]
-# 3D: MSD = 6·D·τ^α  →  D_eff = A / 6
 n_lags_series = imsd[valid_tracks].count()   # Series: track_id → n valid lags
+
+rows = []
+for tid in valid_tracks:
+    col = imsd[tid].dropna()
+    x, y = np.log(col.index.values.astype(float)), np.log(col.values.astype(float))
+    alpha, log_A = np.polyfit(x, y, 1)
+    rows.append({'track_id': tid, 'alpha': alpha, 'A': np.exp(log_A)})
+fits_df = pd.DataFrame(rows)
+# MSD = A·τ^α; 3D: MSD = 6·D·τ^α  →  D_eff = A / 6
 fits_df = (
-    fits_raw
-    .rename(columns={'n': 'alpha'})
+    fits_df
     .assign(D_eff_um2_per_min=lambda d: d['A'] / 6.0)
-    .reset_index()
-    .rename(columns={'index': 'track_id'})
+    .drop(columns='A')
 )
 fits_df['n_lags'] = fits_df['track_id'].map(n_lags_series)
 fits_df = (

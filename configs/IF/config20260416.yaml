@@ -1,6 +1,6 @@
 name: "FGF TE Patterning IF"
 
-raw_data_dir: "/mnt/md0/elysse/PSF"
+raw_data_dir: "/mnt/md1/elysse/20260416_fgf_cdx2_ppmlc_gata3/cropped"
 rotated_dir: "/mnt/md1/elysse/20260416_fgf_cdx2_ppmlc_gata3/cropped/rotated"
 segmentation_dir: "/mnt/md1/elysse/20260416_fgf_cdx2_ppmlc_gata3/nucleimask/cleaned"
 segmentation_dir_raw: "/mnt/md1/elysse/20260416_fgf_cdx2_ppmlc_gata3/nucleimask"
@@ -10,7 +10,7 @@ rotation_log: "/mnt/md1/elysse/20260416_fgf_cdx2_ppmlc_gata3/analysis/rotation_l
 
 file_extension: ".tif"
 
-datasets: ""
+datasets: "20260416_fgf_cdx2_ppmlc_gata3"
 
 microscopy:
   voxel_size_zyx: [1.0, 0.122666664, 0.122666664]
@@ -25,7 +25,7 @@ single_file_mode: false
 
 # Optional HDF5 conversion settings. Add these to the same config file for a pipeline-style setup.
 h5_conversion:
-  root_dir: "/mnt/md0/elysse/2026-04-24_125422"
+  root_dir: "/mnt/md1/elysse/2026-04-16_123056/raw"
   dataset_path: null  # optional HDF5 dataset path, e.g. "/images/data"
   #output_dir: "/path/to/your/pipeline/raw_tiffs"  # optional, else raw_data_dir is used
   #pipeline_config: "configs/IF/config20260218.yaml"  # optional if you want output_dir from pipeline config

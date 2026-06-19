@@ -3,22 +3,41 @@ project:
   dataset_id: "control_2"
 
 paths:
-  # Raw fluorescence tiffs (one 3D tiff per timepoint)
-  raw_dir: "/mnt/md1/elysse/nuclei segmentation/cropped/"
+  # ── Input data ───────────────────────────────────────────────────────────────
+  # Nuclear channel (H2B / Cam_long) — used for segmentation, tracking, intensity features
+  raw_dir: "/mnt/md1/elysse/dataset001_implantation/250913_stack2/data/raw/cam long/"
   raw_glob: "Cam_long_*.tif"
 
+  # ERK biosensor channel (Cam_short) — z-cropped to match cam_long (61 z-planes).
+  # cam_short[z] = same physical z as cam_long[z]; no offset needed.
+  # Both channels have 121 files; pipeline uses first 101 (t=0..100).
+  erk_dir: "/mnt/md1/elysse/dataset001_implantation/250913_stack2/data/raw/cam short/"
+  erk_glob: "Cam_short_*_cropped.tif"
+
   # Instance-segmented label tiffs (one 3D tiff per timepoint, post-reclassification)
-  label_dir: "/mnt/md1/elysse/nuclei segmentation/edit/"
+  label_dir: "/mnt/md1/elysse/dataset001_implantation/250913_stack2/data/labels/"
   label_glob: "*_instances_reclassified.tif"
 
-  # Track-relabeled 4D TIFF: voxel value = track_id + 1 (consistent identity across time)
-  track_labels_tiff: "/mnt/md1/elysse/code/tracking/track_labels_linked_c23.tif"
+  # nnUNet binary prediction tiffs (input to 00_preprocess_segmentation.py)
+  nnunet_dir: "/mnt/md1/elysse/nuclei segmentation/nnunet_output/"
 
-  # Input: curated track CSVs from btrack / link_tracks pipeline
-  tracks_dir: "/mnt/md1/elysse/code/tracking/"
+  # ── Intermediate data ────────────────────────────────────────────────────────
+  features_csv: "/mnt/md1/elysse/dataset001_implantation/250913_stack2/data/features/features.csv"
+  features_registered_csv: "/mnt/md1/elysse/dataset001_implantation/250913_stack2/data/features/features_registered.csv"
+  transforms_npz: "/mnt/md1/elysse/dataset001_implantation/250913_stack2/data/features/transforms.npz"
 
-  # Output: analysis results (CSVs, plots) — created automatically if it doesn't exist
-  output_dir: "/mnt/md1/elysse/code/embryo_image_analysis/results/tracking/control_2"
+  # ── Tracking config ──────────────────────────────────────────────────────────
+  btrack_config_json: "/mnt/md1/elysse/code/embryo_image_analysis/configs/tracking/cell_config.json"
+
+  # ── Tracking outputs ─────────────────────────────────────────────────────────
+  btrack_output_dir: "/mnt/md1/elysse/dataset001_implantation/250913_stack2/results/tracks/btrack/"
+  linked_tracks_dir: "/mnt/md1/elysse/dataset001_implantation/250913_stack2/results/tracks/linked/"
+
+  # track-relabeled 4D TIFF for curation (voxel value = track_id + 1)
+  track_labels_tiff: "/mnt/md1/elysse/dataset001_implantation/250913_stack2/results/tracks/linked/track_labels_linked_c23.tif"
+
+  # ── Analysis outputs ─────────────────────────────────────────────────────────
+  output_dir: "/mnt/md1/elysse/dataset001_implantation/250913_stack2/results/analysis/"
 
 microscopy:
   n_timepoints: 101
@@ -26,19 +45,29 @@ microscopy:
 
 tracking:
   # Which version of the tracks CSV to load and what to save as
-  input_version: "linked_c23"   # tracks_{input_version}.csv
-  output_version: "linked_c24"  # tracks_{output_version}.csv
+  # btrack versions: v1_raw, v2_visual, v3_visual_shape
+  # linked versions: linked, linked_c10 (best so far)
+  input_version: "linked_c62"         # tracks_{input_version}.csv  (read from linked_tracks_dir)
+  output_version: "linked_c63"   # tracks_{output_version}.csv (saved to linked_tracks_dir)
 
-  # Timepoints of interest (curated range)
-  t_start: 17
+  t_start: 0
   t_end: 100
 
-  frame_interval_min: 15   # minutes between timepoints
-  min_track_length: 5      # minimum frames required for motion analysis
+  frame_interval_min: 15
+  min_track_length: 5
 
 motion:
   msd:
-    max_lag_fraction: 0.5   # fit MSD over first 50% of each track's length
-    min_lags_for_fit: 4     # minimum lag points required to fit alpha
+    max_lag_fraction: 0.5
+    min_lags_for_fit: 4
   flow_field:
-    k_neighbors: 6          # nearest spatial neighbors for local flow estimate
+    k_neighbors: 6
+
+erk:
+  ring_radius_um: 1.0        # Voronoi-constrained cytoplasmic ring width in µm
+  bg_multiplier: 3.0         # ring voxels with ERK < bg_level * bg_multiplier are excluded
+                             # bg_level estimated from top 3 z-planes of cam_short at t=0
+
+biology:
+  # ICM centroid at t=30 in physical coordinates [z_um, y_um, x_um].
+  icm_centroid_t30_zyx: [38, 178, 140]

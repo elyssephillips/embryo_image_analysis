@@ -68,6 +68,8 @@ def build_track_label_stack(label_stack: np.ndarray, df: pd.DataFrame) -> np.nda
     """
     remap: dict[int, dict[int, int]] = {}
     for row in df.itertuples(index=False):
+        if pd.isna(row.label_id):  # skip btrack dummy gap-fill objects
+            continue
         t = int(row.t)
         remap.setdefault(t, {})[int(row.label_id)] = int(row.track_id)
 

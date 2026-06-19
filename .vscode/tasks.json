@@ -1,0 +1,108 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Log tracking result",
+            "type": "shell",
+            "command": "conda run -n btrack2 python3 scripts/log_tracking_result.py",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "focus": true
+            },
+            "group": "none",
+            "problemMatcher": []
+        },
+        {
+            "label": "00 Preprocess segmentation",
+            "type": "shell",
+            "command": "conda run -n btrack2 python3 pipelines/tracking/00_preprocess_segmentation.py",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "presentation": { "reveal": "always", "panel": "dedicated", "focus": true },
+            "group": "none",
+            "problemMatcher": []
+        },
+        {
+            "label": "01 Extract features",
+            "type": "shell",
+            "command": "conda run -n btrack2 python3 pipelines/tracking/01_extract_features.py",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "presentation": { "reveal": "always", "panel": "dedicated", "focus": true },
+            "group": "none",
+            "problemMatcher": []
+        },
+        {
+            "label": "02 Register centroids",
+            "type": "shell",
+            "command": "conda run -n btrack2 python3 pipelines/tracking/02_register_centroids.py",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "presentation": { "reveal": "always", "panel": "dedicated", "focus": true },
+            "group": "none",
+            "problemMatcher": []
+        },
+        {
+            "label": "03 Link tracks (custom Hungarian)",
+            "type": "shell",
+            "command": "conda run -n btrack2 python3 pipelines/tracking/03_link_tracks.py 2>&1 | tee /tmp/tracking_run.log",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "presentation": { "reveal": "always", "panel": "dedicated", "focus": true },
+            "group": "none",
+            "problemMatcher": []
+        },
+        {
+            "label": "03 Run btrack (baseline)",
+            "type": "shell",
+            "command": "conda run -n btrack2 python3 pipelines/tracking/03_run_btrack.py 2>&1 | tee /tmp/tracking_run.log",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "presentation": { "reveal": "always", "panel": "dedicated", "focus": true },
+            "group": "none",
+            "problemMatcher": []
+        },
+        {
+            "label": "13 ERK motion analysis",
+            "type": "shell",
+            "command": "conda run -n napari_env python3 pipelines/tracking/13_erk_motion_analysis.py",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "presentation": { "reveal": "always", "panel": "dedicated", "focus": true },
+            "group": "none",
+            "problemMatcher": []
+        },
+        {
+            "label": "12 ERK C/N ratio",
+            "type": "shell",
+            "command": "conda run -n napari_env python3 pipelines/tracking/12_erk_cn_ratio.py 2>&1 | tee /tmp/erk_cn_run.log",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "presentation": { "reveal": "always", "panel": "dedicated", "focus": true },
+            "group": "none",
+            "problemMatcher": []
+        },
+        {
+            "label": "Convert H5 timecourse → TIFF (20260519_mtmg_fgf_e45)",
+            "type": "shell",
+            "command": "conda run -n blastospim-tf python3 scripts/convert_h5_timecourse_to_tiff.py --config 'configs/other live images/20260519_mtmg_fgf_e45.yaml' 2>&1 | tee /tmp/timecourse_convert.log",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "presentation": { "reveal": "always", "panel": "dedicated", "focus": true },
+            "group": "none",
+            "problemMatcher": []
+        }
+    ]
+}

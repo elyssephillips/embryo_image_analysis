@@ -52,6 +52,7 @@ OUTPUT_DIR = Path(cfg['paths']['output_dir'])
 VERSION    = cfg['tracking']['input_version']
 DATASET_ID = cfg['project']['dataset_id']
 FRAME_MIN  = cfg['tracking']['frame_interval_min']
+ICM_ZYX    = (cfg.get('biology') or {}).get('icm_centroid_t30_zyx')  # None until set in config
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -63,6 +64,7 @@ stats = pd.read_csv(OUTPUT_DIR / f'motion_track_stats_{VERSION}.csv')
 fits  = pd.read_csv(OUTPUT_DIR / f'msd_track_fits_{VERSION}.csv')
 
 has_orig = 'z_um_orig' in flow.columns
+z_col = 'z_um_orig' if has_orig else 'z_um'
 y_col = 'y_um_orig' if has_orig else 'y_um'
 x_col = 'x_um_orig' if has_orig else 'x_um'
 
@@ -92,20 +94,48 @@ align = (
     .reset_index()
 )
 
-# ── radial distance — leading-edge proxy ─────────────────────────────────────
-# Mean Y-X position per track; distance from the global centroid of all nuclei.
-# Peripheral (high radial distance) ≈ potential leading edge.
-mean_pos = (
-    flow.groupby('track_id')[[y_col, x_col]]
-    .mean()
+# ── positions at t=30 ────────────────────────────────────────────────────────
+# Z position and radial distance are taken at t=30 (±T_WINDOW) for consistency
+# with ICM distance — all three classify "where was this nucleus at outgrowth".
+# Tracks not observed in the window get NaN for all three.
+T_REF    = 30
+T_WINDOW = 2   # ±frames — tracks outside this window get NaN
+
+within_window = flow[flow['t'].between(T_REF - T_WINDOW, T_REF + T_WINDOW)]
+ref_pos = (
+    within_window
+    .assign(_dt=lambda d: (d['t'] - T_REF).abs())
+    .sort_values(['track_id', '_dt', 't'])
+    .groupby('track_id')
+    .first()
     .reset_index()
-    .rename(columns={y_col: 'y_mean', x_col: 'x_mean'})
+    [['track_id', z_col, y_col, x_col]]
+    .rename(columns={z_col: 'z_t30', y_col: 'y_t30', x_col: 'x_t30'})
 )
-cy = mean_pos['y_mean'].mean()
-cx = mean_pos['x_mean'].mean()
-mean_pos['radial_dist_um'] = np.sqrt(
-    (mean_pos['y_mean'] - cy)**2 + (mean_pos['x_mean'] - cx)**2
+
+# Radial distance from the centroid of all t=30 nuclei
+cy = ref_pos['y_t30'].mean()
+cx = ref_pos['x_t30'].mean()
+ref_pos['radial_dist_um'] = np.sqrt(
+    (ref_pos['y_t30'] - cy)**2 + (ref_pos['x_t30'] - cx)**2
 )
+
+n_total  = flow['track_id'].nunique()
+n_scored = len(ref_pos)
+print(f't=30 ±{T_WINDOW} window: {n_scored}/{n_total} tracks scored, {n_total - n_scored} → NaN')
+
+# ── ICM distance at t=30 ─────────────────────────────────────────────────────
+if ICM_ZYX is not None:
+    iz, iy, ix = ICM_ZYX
+    ref_pos['icm_dist_um'] = np.sqrt(
+        (ref_pos['z_t30'] - iz)**2 +
+        (ref_pos['y_t30'] - iy)**2 +
+        (ref_pos['x_t30'] - ix)**2
+    )
+    print(f'ICM centroid: Z={iz} Y={iy} X={ix} µm')
+else:
+    ref_pos['icm_dist_um'] = np.nan
+    print('ICM centroid not set — icm_dist_um will be NaN (set biology.icm_centroid_t30_zyx in config)')
 
 # ── assemble per-track summary ────────────────────────────────────────────────
 summary = (
@@ -113,7 +143,7 @@ summary = (
     .merge(vol,      on='track_id', how='inner')
     .merge(align,    on='track_id', how='left')
     .merge(fits[['track_id', 'alpha', 'D_eff_um2_per_min']], on='track_id', how='left')
-    .merge(mean_pos, on='track_id', how='left')
+    .merge(ref_pos[['track_id', 'x_t30', 'y_t30', 'z_t30', 'radial_dist_um', 'icm_dist_um']], on='track_id', how='left')
 )
 
 summary.to_csv(OUTPUT_DIR / f'volume_track_stats_{VERSION}.csv', index=False)
@@ -202,7 +232,7 @@ norm_vol = mcolors.Normalize(
     vmax=summary['vol_mean'].quantile(0.95),
 )
 sc = axes[0].scatter(
-    summary['x_mean'], summary['y_mean'],
+    summary['x_t30'], summary['y_t30'],
     c=summary['vol_mean'], cmap='RdYlBu_r', norm=norm_vol,
     s=40, linewidths=0,
 )
@@ -235,6 +265,8 @@ corr_cols = {
     'alpha':                'α (MSD)',
     'D_eff_um2_per_min':    'D_eff',
     'radial_dist_um':       'Radial distance',
+    'z_t30':                'Z position (t30)',
+    'icm_dist_um':          'ICM distance (t30)',
     'n_frames':             'Track length',
 }
 corr_data = summary[list(corr_cols.keys())].dropna()

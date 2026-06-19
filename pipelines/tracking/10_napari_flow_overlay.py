@@ -3,19 +3,24 @@ Open napari with flow field overlaid on raw image + segmentation.
 
 Layers
 ------
-  raw              — raw fluorescence stack
-  labels           — track-relabeled stack (voxel value = track_id, consistent across time)
-  tracks           — nucleus trajectories
-  local flow speed — nuclei coloured by collective flow speed
-  autonomous speed — nuclei coloured by autonomous (cell-intrinsic) speed
-  local vectors    — arrows showing collective flow direction
-  autonomous vectors — arrows showing autonomous motion direction
+  raw                  — raw fluorescence stack (optional)
+  labels               — track-relabeled stack (voxel value = track_id, consistent across time)
+  tracks               — nucleus trajectories
+  velocity (alignment) — arrows showing each nucleus's motion direction,
+                         coloured red (with field) → white (perpendicular) → blue (against field)
+  speed                — nuclei coloured by instantaneous speed (hidden by default)
+  volume (µm³)         — nuclei coloured by nuclear volume (hidden by default)
+
+Tunable parameters (near top of script)
+----------------------------------------
+  SMOOTH_FRAMES  rolling window for velocity smoothing (default 4; set to 1 for raw)
+  ARROW_SCALE    arrow length multiplier (default 1.5)
 
 Usage
 -----
-  python 10_napari_flow_overlay.py                              # loads images (slow)
-  python 10_napari_flow_overlay.py --no-images                  # flow data only (fast)
-  python 10_napari_flow_overlay.py configs/tracking/control_2.yaml
+  python 10_napari_flow_overlay.py                                          # loads images (slow)
+  python 10_napari_flow_overlay.py --no-images                              # flow data only (fast)
+  python 10_napari_flow_overlay.py configs/tracking/dataset001_implantation.yaml
 """
 
 import sys
@@ -52,6 +57,7 @@ VERSION    = cfg['tracking']['input_version']
 N_T        = cfg['microscopy']['n_timepoints']
 VX_Z, VX_Y, VX_X = cfg['microscopy']['voxel_size_zyx']
 FRAME_MIN  = cfg['tracking']['frame_interval_min']
+ICM_ZYX    = (cfg.get('biology') or {}).get('icm_centroid_t30_zyx')  # None until set
 
 SCALE = (1, VX_Z, VX_Y, VX_X)   # T, Z, Y, X in µm
 
@@ -65,16 +71,67 @@ z_col = 'z_um_orig' if has_orig else 'z_um'
 y_col = 'y_um_orig' if has_orig else 'y_um'
 x_col = 'x_um_orig' if has_orig else 'x_um'
 
-# Rows with valid velocity (not first frame of track)
+# ── smooth velocities per track ───────────────────────────────────────────────
+# Rolling mean over the last SMOOTH_FRAMES frames reduces per-frame noise.
+# Set to 1 to use raw single-frame displacements.
+SMOOTH_FRAMES = 4
+
+flow_df = flow_df.sort_values(['track_id', 't'])
+for col in ['dy_um', 'dx_um', 'local_vy_um', 'local_vx_um']:
+    flow_df[col] = (
+        flow_df.groupby('track_id')[col]
+        .transform(lambda x: x.rolling(SMOOTH_FRAMES, min_periods=1).mean())
+    )
+
+# Recompute flow_alignment from smoothed velocities
+own_spd   = np.sqrt(flow_df['dy_um']**2       + flow_df['dx_um']**2)
+loc_spd   = np.sqrt(flow_df['local_vy_um']**2 + flow_df['local_vx_um']**2)
+dot       = flow_df['dy_um'] * flow_df['local_vy_um'] + flow_df['dx_um'] * flow_df['local_vx_um']
+denom     = own_spd * loc_spd
+flow_df['flow_alignment'] = np.where(denom > 0, dot / denom, np.nan)
+
+print(f'Velocities smoothed over {SMOOTH_FRAMES} frames per track')
+
+# ── ICM distance (per track, fixed at t=30 ± T_WINDOW) ───────────────────────
+# Tracks not observed within the window get NaN — not classified.
+T_REF    = 30
+T_WINDOW = 2   # ±frames
+
+if ICM_ZYX is not None:
+    iz, iy, ix = ICM_ZYX
+    within_window = flow_df[flow_df['t'].between(T_REF - T_WINDOW, T_REF + T_WINDOW)]
+    ref_pos = (
+        within_window
+        .assign(_dt=lambda d: (d['t'] - T_REF).abs())
+        .sort_values(['track_id', '_dt', 't'])
+        .groupby('track_id')
+        .first()
+        .reset_index()
+        [['track_id', z_col, y_col, x_col]]
+    )
+    ref_pos['icm_dist_um'] = np.sqrt(
+        (ref_pos[z_col] - iz)**2 +
+        (ref_pos[y_col] - iy)**2 +
+        (ref_pos[x_col] - ix)**2
+    )
+    flow_df = flow_df.merge(ref_pos[['track_id', 'icm_dist_um']], on='track_id', how='left')
+    n_total  = flow_df['track_id'].nunique()
+    n_scored = ref_pos['track_id'].nunique()
+    print(f'ICM centroid at t={T_REF}: Z={iz} Y={iy} X={ix} µm')
+    print(f'  {n_scored}/{n_total} tracks scored — {n_total - n_scored} outside ±{T_WINDOW} frame window → NaN')
+else:
+    flow_df['icm_dist_um'] = np.nan
+    print('ICM centroid not set — skipping distance layer (set biology.icm_centroid_t30_zyx in config)')
+
+# Rows with valid smoothed velocity
 valid = flow_df.dropna(subset=['dy_um', 'dx_um', 'flow_alignment']).copy()
 
 # ── build napari layer data ───────────────────────────────────────────────────
 # Points: (N, 4) = [t, z, y, x] in physical µm — matches image scale
 point_coords = valid[['t', z_col, y_col, x_col]].values.astype(float)
 
-# Raw velocity vectors: (N, 2, 4) = [[t, z, y, x], [0, 0, dy, dx]]
+# Velocity vectors: (N, 2, 4) = [[t, z, y, x], [0, 0, dy, dx]]
 # ARROW_SCALE: multiply µm displacement to get visible arrow length.
-# Reduce to shorten arrows; increase to lengthen.
 ARROW_SCALE = 1.5
 
 def _make_velocity_vectors():
@@ -112,6 +169,7 @@ else:
 
 # ── open napari ───────────────────────────────────────────────────────────────
 viewer = napari.Viewer()
+viewer.dims.axis_labels = ['t', 'z', 'y', 'x']
 
 if raw_stack is not None:
     viewer.add_image(raw_stack,   name='raw',    scale=SCALE,
@@ -155,7 +213,31 @@ if 'area_um3' in valid.columns:
         visible=False,
     )
 
+# Z position — shows dorsal/ventral or apical/basal stratification
+viewer.add_points(
+    point_coords, name='Z position (µm)',
+    features={'z': valid[z_col].values},
+    face_color='z', face_colormap='RdYlBu',
+    size=4, opacity=0.9, border_width=0,
+    visible=False,
+)
+
+# Distance from ICM at t=30 — regional TE subpopulation proxy
+# Uses a separate filtered coordinate array — NaN rows cause napari to render nothing
+if ICM_ZYX is not None and valid['icm_dist_um'].notna().any():
+    icm_valid  = valid[valid['icm_dist_um'].notna()]
+    icm_coords = icm_valid[['t', z_col, y_col, x_col]].values.astype(float)
+    viewer.add_points(
+        icm_coords, name='ICM distance (µm)',
+        features={'dist': icm_valid['icm_dist_um'].values},
+        face_color='dist', face_colormap='magma',
+        size=4, opacity=0.9, border_width=0,
+        visible=False,
+    )
+
 print('\nLayers loaded. Toggle visibility in the napari layer panel.')
 print('  velocity arrows: red=with field  white=perpendicular  blue=against field')
 print(f'  ARROW_SCALE = {ARROW_SCALE}  — edit near top of script to resize arrows')
+if ICM_ZYX is None:
+    print('  ICM distance layer inactive — set biology.icm_centroid_t30_zyx in config')
 napari.run()

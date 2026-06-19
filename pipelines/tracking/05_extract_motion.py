@@ -28,6 +28,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
 from src.motion import compute_kinematics, summarize_tracks
+from src.log import log_run
 
 # ── config ────────────────────────────────────────────────────────────────────
 parser = argparse.ArgumentParser()
@@ -43,7 +44,7 @@ CONFIG_PATH = REPO_ROOT / args.config
 with open(CONFIG_PATH) as f:
     cfg = yaml.safe_load(f)
 
-TRACKS_DIR         = Path(cfg['paths']['tracks_dir'])
+TRACKS_DIR         = Path(cfg['paths'].get('tracks_dir') or cfg['paths']['linked_tracks_dir'])
 OUTPUT_DIR         = Path(cfg['paths']['output_dir'])
 VERSION            = cfg['tracking']['input_version']
 T_START            = cfg['tracking']['t_start']
@@ -63,12 +64,14 @@ tracks_csv = TRACKS_DIR / f'tracks_{VERSION}.csv'
 print(f'\nLoading {tracks_csv}')
 df = pd.read_csv(tracks_csv)
 
-has_orig = 'z_um_orig' in df.columns
-z_col, y_col, x_col = ('z_um_orig', 'y_um_orig', 'x_um_orig') if has_orig \
+has_reg = 'z_um_reg' in df.columns
+z_col, y_col, x_col = ('z_um_reg', 'y_um_reg', 'x_um_reg') if has_reg \
                        else ('z_um', 'y_um', 'x_um')
 
-if not has_orig:
-    print('WARNING: original image coordinates not found — using registered coords')
+if has_reg:
+    print('Using drift-corrected registered coordinates (z_um_reg, y_um_reg, x_um_reg)')
+else:
+    print('WARNING: registered coordinates not found — using raw image coordinates')
 
 # Filter to curated timepoint range
 df = df[(df['t'] >= T_START) & (df['t'] <= T_END)].copy()
@@ -104,3 +107,7 @@ print(f'Saved track stats: {stats_out}')
 print(f'\n--- Track stats summary ---')
 print(stats_df[['total_path_um', 'net_disp_um', 'straightness',
                  'mean_speed_um_per_min']].describe().round(3).to_string())
+
+log_run("tracking", CONFIG_PATH.stem, "05_extract_motion.py",
+        output_path=str(OUTPUT_DIR), detail="light",
+        data_path=str(OUTPUT_DIR))

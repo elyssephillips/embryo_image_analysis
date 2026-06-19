@@ -1,0 +1,98 @@
+project:
+  name: "mT/mG FGF live imaging E4.5"
+  date: "2026-05-20"
+  dataset: "20260519_mtmg_fgf_e45"
+  notes: ""  # fill in: treatment details, litter info, etc.
+
+paths:
+  raw_data_dir: "/mnt/md1/elysse/20260519_mtmg_fgf_e45/tifs"
+  output_dir: "/mnt/md1/elysse/20260519_mtmg_fgf_e45/analysis"
+
+microscopy:
+  instrument: "Luxendo TruLive3D"
+  serial_number: "40244"
+  software_version: "3.17.6-beta"
+
+  # ZYX voxel size in microns (from processingInformation.voxel_size_um)
+  voxel_size_zyx_um: [2.0, 0.122666664, 0.122666664]
+  image_size_zyx: [196, 2368, 4432]
+
+  detection_objective:
+    model: "Nikon CFI75 Apochromat 25XC W"
+    magnification: 25
+    na: 1.1
+    immersion: "water"
+    wd_mm: 2.0
+
+  illumination_objectives:
+    model: "Nikon CFI Plan Fluor 10x W"
+    magnification: 10
+    na: 0.3
+    immersion: "water"
+
+  channels:
+    - index: 0
+      name: "mTomato"          # 561 nm excitation → mT/mG membrane reporter
+      laser_nm: 561
+      laser_intensity_pct: 20
+      laser_power_max_mw: 50
+      emission_filter: "BP 580-627"
+      dichroic: "LP 653"
+      exposure_ms: 50
+
+acquisition:
+  n_timepoints: 100
+  interval_s: 420
+  interval_min: 7.0
+  total_duration_h: 11.55
+  start_time: "2026-05-20 17:04:19"   # first frame, stack_0
+  end_time: "2026-05-21 04:37:18"     # last frame, stack_0
+
+stacks:
+
+
+  - id: "stack_1-control plus fgf"
+    condition: "control_plus_fgf"
+    folder: "stack_1-control plus fgf_channel_0_obj_bottom"
+
+  - id: "stack_2-control plus fgf"
+    condition: "control_plus_fgf"
+    folder: "stack_2-control plus fgf_channel_0_obj_bottom"
+
+  - id: "stack_3-fgf plus control"
+    condition: "fgf_plus_control"
+    folder: "stack_3-fgf plus control_channel_0_obj_bottom"
+
+  - id: "stack_4-fgf plus control"
+    condition: "fgf_plus_control"
+    folder: "stack_4-fgf plus control_channel_0_obj_bottom"
+
+  - id: "stack_5-control plus fgf"
+    condition: "control_plus_fgf"
+    folder: "stack_5-control plus fgf_channel_0_obj_bottom"
+
+  - id: "stack_6-control plus fgf"
+    condition: "control_plus_fgf"
+    folder: "stack_6-control plus fgf_channel_0_obj_bottom"
+
+  - id: "stack_7-control plus fgf"
+    condition: "control_plus_fgf"
+    folder: "stack_7-control plus fgf_channel_0_obj_bottom"
+
+# ── Timecourse TIFF conversion ────────────────────────────────────────────────
+# Run: python scripts/convert_h5_timecourse_to_tiff.py --config <this file>
+live_timecourse:
+  root_dir: "/mnt/md1/elysse/20260519_mtmg_fgf_e45/2026-05-20_170255/raw"
+  output_dir: "/mnt/md1/elysse/20260519_mtmg_fgf_e45/tifs"
+  dataset_path: "Data"
+  dtype: "uint16"
+
+  per_timepoint: true          # write one ZYX TIFF per timepoint per stack subfolder
+  skip_stacks: ["stack_0"]    # stack_0 excluded from processing
+
+  # Autocrop: computed from first + last timepoint (union), applied to all T.
+  auto_crop: true
+  auto_crop_channel: 0
+  auto_crop_threshold_percentile: 80   # p50 was too low (picked up background); increase if crop is still too loose
+  auto_crop_blur_sigma: 2
+  pad: 20

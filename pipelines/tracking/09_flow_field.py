@@ -58,10 +58,10 @@ print(f'k_neighbors: {K}')
 
 # ── load kinematics ───────────────────────────────────────────────────────────
 kin = pd.read_csv(OUTPUT_DIR / f'motion_kinematics_{VERSION}.csv')
-has_orig = 'z_um_orig' in kin.columns
-z_col = 'z_um_orig' if has_orig else 'z_um'
-y_col = 'y_um_orig' if has_orig else 'y_um'
-x_col = 'x_um_orig' if has_orig else 'x_um'
+has_reg = 'z_um_reg' in kin.columns
+z_col = 'z_um_reg' if has_reg else 'z_um'
+y_col = 'y_um_reg' if has_reg else 'y_um'
+x_col = 'x_um_reg' if has_reg else 'x_um'
 
 # ── compute local flow ────────────────────────────────────────────────────────
 print('Computing local flow field...')
