@@ -15,6 +15,7 @@ from datetime import datetime
 from scipy.stats import pearsonr, linregress, ttest_ind
 from src.io import load_config, update_master_study_log
 from src.analysis import normalize_by_dapi, map_values_to_labels, calculate_patterning_score
+from src.log import log_run
 
 
 def run_full_analysis():
@@ -172,7 +173,21 @@ def run_full_analysis():
     print(f"Summary CSV saved to: {csv_path}")
 
     dataset_name = output_dir.parent.name
-    update_master_study_log(stat_df, dataset_name)
+    dataset_description = config.get('name', dataset_name)
+    config_file = "configs/config.yaml"
+    analysis_version = config.get('analysis_version', "")
+    notes = config.get('description', "")
+
+    update_master_study_log(
+        stat_df,
+        dataset_name,
+        project_name="IF",
+        pipeline_name="IF",
+        dataset_description=dataset_description,
+        config_file=config_file,
+        analysis_version=analysis_version,
+        notes=notes,
+    )
 
     # 6. GROUP STATS & BOXPLOTS
     controls = stat_df[stat_df['group'] == 'Control']
@@ -215,3 +230,8 @@ def run_full_analysis():
 
 if __name__ == "__main__":
     run_full_analysis()
+    config = load_config()
+    dataset_id = Path(config['output_dir']).parts[-2]
+    log_run("IF", dataset_id, "04_plot_intensities.py",
+            output_path=config['output_dir'], detail="detailed",
+            data_path=config.get('raw_data_dir', config['output_dir']))

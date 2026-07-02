@@ -76,23 +76,64 @@ def log_rotation(output_path, identifier, angle):
     print(f"Logged {angle}° for {identifier} in rotation_log.csv")
 
 
-def update_master_study_log(stat_df, dataset_name, project_root="."):
+def update_master_study_log(
+    stat_df,
+    dataset_name,
+    project_root=".",
+    project_name="IF",
+    pipeline_name="IF",
+    dataset_description=None,
+    config_file=None,
+    analysis_version=None,
+    notes=None,
+):
     """Appends high-level metadata to a master log file in the project root."""
     master_log_path = Path(project_root) / "master_study_log.csv"
+    if dataset_description is None:
+        dataset_description = dataset_name
+    if analysis_version is None:
+        analysis_version = ""
+    if notes is None:
+        notes = ""
     summary_data = {
         'analysis_date': datetime.now().strftime('%Y-%m-%d %H:%M'),
+        'project_name': project_name,
+        'pipeline_name': pipeline_name,
         'dataset_id': dataset_name,
+        'dataset_description': dataset_description,
+        'config_file': config_file or "",
+        'analysis_version': analysis_version,
         'n_total': len(stat_df),
         'n_control': len(stat_df[stat_df['group'] == 'Control']),
         'n_treated': len(stat_df[stat_df['group'] == 'Treated']),
         'avg_pearson_r': stat_df['pearson_r'].mean(),
         'avg_gata3_y_slope': stat_df['gata3_y_slope'].mean(),
-        'avg_polarization': stat_df['pattern_score'].mean()
+        'avg_polarization': stat_df['pattern_score'].mean(),
+        'notes': notes,
     }
-    new_entry = pd.DataFrame([summary_data])
+    master_columns = [
+        'analysis_date',
+        'project_name',
+        'pipeline_name',
+        'dataset_id',
+        'dataset_description',
+        'config_file',
+        'analysis_version',
+        'n_total',
+        'n_control',
+        'n_treated',
+        'avg_pearson_r',
+        'avg_gata3_y_slope',
+        'avg_polarization',
+        'notes',
+    ]
+    new_entry = pd.DataFrame([summary_data], columns=master_columns)
     if not master_log_path.exists():
         new_entry.to_csv(master_log_path, index=False)
         print(f"Created NEW Master Study Log: {master_log_path}")
     else:
-        new_entry.to_csv(master_log_path, mode='a', header=False, index=False)
+        existing = pd.read_csv(master_log_path)
+        existing = existing.reindex(columns=master_columns)
+        combined = pd.concat([existing, new_entry], ignore_index=True)
+        combined.to_csv(master_log_path, index=False)
         print(f"Appended stats to Master Study Log.")
