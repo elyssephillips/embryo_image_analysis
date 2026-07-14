@@ -84,6 +84,22 @@ for t, grp in cn_df.groupby('t'):
     arr[grp_v['label_id'].astype(int).values] = grp_v['erk_cn_ratio'].astype(np.float32).values
     luts[t] = arr
 
+# Per-timepoint LUT: label_id → track_id, so the same nucleus keeps the same
+# color across frames in the "labels" layer (raw segmentation IDs are re-used
+# each timepoint and aren't stable identifiers; track_id is).
+print('Building per-timepoint label→track_id lookup tables (for consistent label colors)...')
+track_luts = {}
+for t, grp in cn_df.groupby('t'):
+    valid = grp['label_id'].notna() & grp['track_id'].notna()
+    grp_v = grp[valid]
+    if grp_v.empty:
+        track_luts[t] = np.array([], dtype=np.int64)
+        continue
+    max_lid = int(grp_v['label_id'].max())
+    arr = np.zeros(max_lid + 1, dtype=np.int64)
+    arr[grp_v['label_id'].astype(int).values] = grp_v['track_id'].astype(np.int64).values
+    track_luts[t] = arr
+
 cn_vals = cn_df['erk_cn_ratio'].dropna()
 cn_median = float(cn_vals.median())
 cn_lo = float(cn_vals.quantile(0.02))
@@ -161,6 +177,25 @@ def _icm_frame(t):
     return _map_lut_to_frame(label_files[t], icm_luts.get(t))
 
 
+def _map_track_lut_to_frame(label_path, lut):
+    """Replace each nonzero label ID with its track_id from lut. Untracked/background → 0."""
+    labels = tifffile.imread(str(label_path))
+    out = np.zeros(labels.shape, dtype=np.int64)
+    if lut is not None and len(lut) > 0:
+        flat_lbl = labels.ravel()
+        flat_out = out.ravel()
+        nonbg = flat_lbl > 0
+        if nonbg.any():
+            ids = flat_lbl[nonbg]
+            in_range = ids < len(lut)
+            flat_out[np.where(nonbg)[0][in_range]] = lut[ids[in_range]]
+    return out
+
+
+def _track_label_frame(t):
+    return _map_track_lut_to_frame(label_files[t], track_luts.get(t))
+
+
 cn_frames = [
     da.from_delayed(
         dask.delayed(_cn_frame)(t),
@@ -230,14 +265,16 @@ if not args.no_images:
             visible=False,
         )
 
-# Instance label boundaries (semi-transparent overlay for nucleus outlines)
+# Instance label boundaries (semi-transparent overlay for nucleus outlines).
+# Remapped to track_id (not raw segmentation label) so each nucleus keeps the
+# same color across frames; untracked nuclei fall back to background (0).
 lbl_frames = [
     da.from_delayed(
-        dask.delayed(tifffile.imread)(str(p)),
+        dask.delayed(_track_label_frame)(t),
         shape=label_shape,
-        dtype=_probe.dtype,
+        dtype=np.int64,
     )
-    for p in label_files
+    for t in range(N_T)
 ]
 viewer.add_labels(
     da.stack(lbl_frames, axis=0), name='labels', scale=SCALE,

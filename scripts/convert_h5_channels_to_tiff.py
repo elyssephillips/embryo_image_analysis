@@ -162,8 +162,16 @@ def main():
         print(f"Loaded crop overrides for {len(crop_overrides)} stack(s) from {overrides_path}")
 
     groups = build_stack_groups(root_dir)
+
+    # Flat-file fallback: h5 files sitting directly in root_dir, one channel each.
     if not groups:
-        raise ValueError(f"No channel folders found under {args.root_dir}. Check folder naming.")
+        flat_files = sorted(root_dir.glob("*.h5")) + sorted(root_dir.glob("*.hdf5"))
+        if flat_files:
+            groups = {f.stem: [(0, f)] for f in flat_files}
+            print(f"Flat-file mode: treating {len(flat_files)} .h5 file(s) as single-channel stacks.")
+
+    if not groups:
+        raise ValueError(f"No channel folders or .h5 files found under {root_dir}. Check folder naming.")
 
     stack_ids = sorted(groups.keys())
     n_stacks = len(stack_ids)
@@ -204,7 +212,10 @@ def main():
             continue
 
         print(f"\n[{stack_num}/{n_stacks}] {stack_id}", flush=True)
-        channel_h5_files = [find_h5_file(folder) for _, folder in items_sorted]
+        channel_h5_files = [
+            folder if folder.is_file() else find_h5_file(folder)
+            for _, folder in items_sorted
+        ]
 
         # ------------------------------------------------------------------
         # Determine crop bounds — all reads are one Z-slice at a time so the

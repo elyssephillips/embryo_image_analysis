@@ -50,7 +50,7 @@ tracking:
   input_version: "linked_c62"         # tracks_{input_version}.csv  (read from linked_tracks_dir)
   output_version: "linked_c63"   # tracks_{output_version}.csv (saved to linked_tracks_dir)
 
-  t_start: 0
+  t_start: 16   # exclude early frames — unreliable tracking before this
   t_end: 100
 
   frame_interval_min: 15

@@ -1,0 +1,50 @@
+# Example config for convert_h5_channels_to_tiff.py
+#
+# Usage:
+#   python scripts/convert_h5_channels_to_tiff.py --config configs/h5_to_tiff_config_example.yaml
+#
+# Or, if you name this file configs/config.yaml (or config.yaml in the working directory),
+# the script will pick it up automatically with no --config flag needed.
+
+# Where to write the output TIFFs.
+# Each stack becomes one multi-channel CZYX TIFF named after its stack ID.
+raw_data_dir: "/path/to/output/tiffs"
+
+microscopy:
+  voxel_size_zyx: [1.0, 0.122666664, 0.122666664]  # z, y, x in microns
+  channel_names: ["dapi", "gfp", "rfp", "cy5"]      # one name per channel
+
+h5_conversion:
+  # Root folder containing one subfolder per channel, each holding .h5 files.
+  # Expected layout:
+  #   root_dir/
+  #     channel_0/   stack001.h5  stack002.h5 ...
+  #     channel_1/   stack001.h5  stack002.h5 ...
+  root_dir: "/path/to/h5/root"
+
+  # Optional: override output location (defaults to raw_data_dir above).
+  # output_dir: "/path/to/output/tiffs"
+
+  # Optional: HDF5 internal dataset path if the file contains multiple datasets.
+  # Leave as null if there is only one dataset per file.
+  dataset_path: null   # e.g. "/images/data"
+
+  # --- Crop settings (pick one approach, leave others as null/false) ---
+
+  # Auto-crop: detect non-zero signal and crop to its bounding box.
+  auto_crop: false
+  auto_crop_channel: 0          # which channel index to base crop bounds on (null = all channels)
+  auto_crop_threshold: null     # absolute intensity cutoff (null = use percentile instead)
+  auto_crop_threshold_percentile: 90  # percentile of MIP used as threshold when no absolute cutoff set
+  auto_crop_blur_sigma: 10      # gaussian blur sigma applied before thresholding (smooths patchy signal)
+  pad: 50                       # voxels of padding added around auto-crop bounds
+
+  # Manual crop: fixed bounds applied to every stack.
+  # Format: y0:y1:x0:x1  (keeps all Z)   OR   z0:z1:y0:y1:x0:x1
+  crop: null   # e.g. "200:1800:300:1700"
+
+  # Ask for visual approval before saving each auto-cropped TIFF (requires a display).
+  confirm_autocrop: false
+
+  # Output dtype. float32 preserves precision; uint16 halves file size for integer data.
+  dtype: "float32"
