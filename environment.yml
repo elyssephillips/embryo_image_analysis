@@ -12,11 +12,13 @@ dependencies:
   - jupyterlab
   - ipykernel
   - napari
+  - pyqt
+  - magicgui
   - seaborn
   - h5py
   - pyyaml
-  - pypaml
   - scikit-learn
+  - tifffile
 
   - pip:
       - ruff
