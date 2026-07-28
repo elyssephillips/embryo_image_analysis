@@ -1,0 +1,131 @@
+project:
+  name: "260721_e45c_fgf_oct4_snap"
+  date: "2026-07-21"
+  dataset: "260721_e45c_fgf_oct4_snap"
+  notes: ""
+
+paths:
+  raw_data_dir: "/mnt/md1/elysse/260721_E4.5c_fgf_oct4_snap/tifs"
+  output_dir: "/mnt/md1/elysse/260721_E4.5c_fgf_oct4_snap/analysis"
+
+microscopy:
+  instrument: "TruLive3D"
+  serial_number: "40244"
+  software_version: "3.17.6-beta"
+
+  # ZYX voxel size in microns (from processingInformation.voxel_size_um)
+  voxel_size_zyx_um: [3.0, 0.184, 0.184]
+  image_size_zyx: [94, 2368, 4432]
+
+  detection_objective:
+    model: ""  # TODO: not in Cam_*.json — fill in from the scope's objective config
+    magnification: 25.0
+    na: 1.1
+    immersion: ""  # TODO
+    wd_mm: null  # TODO
+
+  channels:
+    - index: 0
+      name: "far red"
+      laser_nm: null  # TODO: not in Cam_*.json
+      exposure_ms: null  # TODO: not in Cam_*.json
+    - index: 1
+      name: "ch1"  # TODO: verify channel identity
+      laser_nm: null  # TODO: not in Cam_*.json
+      exposure_ms: null  # TODO: not in Cam_*.json
+
+acquisition:
+  n_timepoints: 70
+  interval_s: 913.0
+  interval_min: 15.22
+  total_duration_h: 17.5
+  start_time: "2026-07-21 18:44:13"   # first frame, stack_0
+  end_time: "2026-07-22 12:14:12"     # last frame, stack_0
+
+stacks:
+
+  - id: "stack_0"
+    condition: "control"  # control
+    folder: "stack_0_channel_0-far red_obj_bottom"
+    notes: ""
+  - id: "stack_1"
+    condition: "control"  # control
+    folder: "stack_1_channel_1_obj_bottom"
+    notes: ""
+  - id: "stack_2"
+    condition: "control"  # control
+    folder: "stack_2_channel_0-far red_obj_bottom"
+    notes: ""
+  - id: "stack_3"
+    condition: "control"  # control
+    folder: "stack_3_channel_0-far red_obj_bottom"
+    notes: ""
+  - id: "stack_4"
+    condition: "control"  # control
+    folder: "stack_4_channel_0-far red_obj_bottom"
+    notes: ""
+  - id: "stack_5"
+    condition: "control"  # control
+    folder: "stack_5_channel_0-far red_obj_bottom"
+    notes: ""
+  - id: "stack_6"
+    condition: "control"  # control
+    folder: "stack_6_channel_0-far red_obj_bottom"
+    notes: ""
+  - id: "stack_7"
+    condition: "control"  # control
+    folder: "stack_7_channel_0-far red_obj_bottom"
+    notes: ""
+  - id: "stack_8"
+    condition: "control"  # control
+    folder: "stack_8_channel_0-far red_obj_bottom"
+    notes: ""
+  - id: "stack_9-fgf "
+    condition: "fgf"
+    folder: "stack_9-fgf _channel_0-far red_obj_bottom"
+    notes: ""
+  - id: "stack_10"
+    condition: "fgf"  
+    folder: "stack_10_channel_0-far red_obj_bottom"
+    notes: ""
+  - id: "stack_11"
+    condition: "fgf"  # TODO: no label in folder name to guess from
+    folder: "stack_11_channel_0-far red_obj_bottom"
+    notes: ""
+  - id: "stack_12"
+    condition: "fgf"  # TODO: no label in folder name to guess from
+    folder: "stack_12_channel_0-far red_obj_bottom"
+    notes: ""
+  - id: "stack_13-fgf oct 4 snap"
+    condition: "fgf"
+    folder: "stack_13-fgf oct 4 snap_channel_0-far red_obj_bottom"
+    notes: ""
+  - id: "stack_14-fgf snap oct 4"
+    condition: "fgf"
+    folder: "stack_14-fgf snap oct 4_channel_0-far red_obj_bottom"
+    notes: ""
+
+# ── Timecourse TIFF conversion ────────────────────────────────────────────────
+# Run: python scripts/convert_h5_timecourse_to_tiff.py --config "configs/other live images/260721_e45c_fgf_oct4_snap.yaml"
+live_timecourse:
+  root_dir: "/mnt/md1/elysse/260721_E4.5c_fgf_oct4_snap/2026-07-21_184317/raw"
+  output_dir: "/mnt/md1/elysse/260721_E4.5c_fgf_oct4_snap/tifs"
+  dataset_path: "Data"
+  dtype: "uint16"
+
+  # Per-stack manual crop overrides (from inspect_crop_bounds_timecourse.py),
+  # scoped to this dataset -- not the shared configs/other live images/crop_overrides.yaml,
+  # which would collide across datasets sharing that folder.
+  crop_overrides_file: "crop_overrides_260721_e45c_fgf_oct4_snap.yaml"
+
+  per_timepoint: true          # write one ZYX TIFF per timepoint per stack subfolder
+  skip_stacks: ["stack_1"]    # ch1 has 26 dropped h5/json frames scattered through the run (isolated write glitch,
+                               # not seen elsewhere in this dataset) -- channel alignment breaks down past the first
+                               # gap (~19:15). Revisit by hand if this embryo's data is needed.
+
+  # Autocrop: computed from first + last timepoint (union), applied to all T.
+  auto_crop: true
+  auto_crop_channel: 0
+  auto_crop_threshold_percentile: 80
+  auto_crop_blur_sigma: 2
+  pad: 20

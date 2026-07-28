@@ -9,7 +9,7 @@ import pandas as pd
 import json
 
 
-def load_config(config_path='configs/config.yaml'):
+def load_config(config_path='configs/IF/config.yaml'):
     base_path = Path(__file__).parent.parent
     full_path = base_path / config_path
     with open(full_path, 'r') as f:
@@ -45,7 +45,10 @@ def get_voxel_size_from_json(json_path):
             data = json.load(f)
             if isinstance(data, list):
                 data = data[0]
-            v_size = data.get('voxel_size_um', {})
+            # Newer acquisition JSONs nest this under processingInformation;
+            # older ones (if any) may have had it at the top level.
+            v_size = data.get('processingInformation', {}).get('voxel_size_um') \
+                or data.get('voxel_size_um', {})
             z_um = v_size.get('depth', z_default)
             xy_um = v_size.get('width', xy_default)
             return [z_um, xy_um, xy_um]

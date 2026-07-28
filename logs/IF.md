@@ -9,6 +9,7 @@
 | 20260304_fgf_cdx2_ppmlc_gata3 | FGF TE patterning IF — CDX2, GATA3, ppMLC | ? | `/Users/elyssephillips/Desktop/2026-03-04_*/` | — | archived (old Mac) | <!-- row:20260304_fgf_cdx2_ppmlc_gata3 -->
 | 20260416_fgf_cdx2_ppmlc_gata3 | FGF TE patterning IF — CDX2, GATA3, ppMLC | ? | `/mnt/md1/elysse/20260416_fgf_cdx2_ppmlc_gata3/` | — | in progress | <!-- row:20260416_fgf_cdx2_ppmlc_gata3 -->
 
+| 20260604_meki_cdx2_ppmlc_gata3 | IF E3.5-4.5 meki with mural gata3 cdx2 panel | 3 C, 6 meki + 7 testing second panel | `/mnt/md1/elysse/20260604_fixed` | 2026-07-16 | conversion done | <!-- row:20260604_meki_cdx2_ppmlc_gata3 -->
 <!-- index-end -->
 
 ---
@@ -69,3 +70,17 @@
 **Data path:** /mnt/md1/elysse/20260416_fgf_cdx2_ppmlc_gata3/
 
 <!-- ds-end:20260416_fgf_cdx2_ppmlc_gata3 -->
+
+<!-- ds:20260604_meki_cdx2_ppmlc_gata3 -->
+## 20260604_meki_cdx2_ppmlc_gata3
+
+**Description:** IF E3.5-4.5 meki with mural gata3 cdx2 panel  
+**N / Conditions:** 3 C, 6 meki + 7 testing second panel  
+**Data path:** /mnt/md1/elysse/20260604_fixed
+
+### 2026-07-16 11:36 | convert_h5_to_tiff.py
+**Output:** /mnt/md1/elysse/20260604_fixed/cropped
+**Done:** E3.5-E4.5 c or meki in IVC1
+**Next:** analyze c and meki patterning for cdx2 gata3 params
+
+<!-- ds-end:20260604_meki_cdx2_ppmlc_gata3 -->

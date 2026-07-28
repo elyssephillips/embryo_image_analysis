@@ -22,7 +22,7 @@ from pathlib import Path
 # ── Dev override ──────────────────────────────────────────────────────────────
 # Set this to run the script directly (play button / F5) without CLI args.
 # Set to None to require CLI args instead.
-DEV_CONFIG = Path("configs/other live images/20260519_mtmg_fgf_e45.yaml")
+DEV_CONFIG = Path("configs/other live images/260721_e45c_fgf_oct4_snap.yaml")
 # ─────────────────────────────────────────────────────────────────────────────
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -33,8 +33,8 @@ import yaml
 
 from src.log import log_conversion
 from src.conversion import (
+    autocrop_bounds_from_timepoints,
     build_live_stack_groups,
-    compute_autocrop_bounds_streaming,
     find_h5_files_sorted,
     get_config_value,
     load_yaml_config,
@@ -52,48 +52,6 @@ def _get_live_config(config):
         return {}
     val = config.get("live_timecourse")
     return val if isinstance(val, dict) else {}
-
-
-def _autocrop_from_timepoints(
-    channel_timepoint_files, timepoint_indices, dataset_path,
-    pad, threshold, threshold_percentile, blur_sigma, auto_crop_channel,
-):
-    """Compute crop bounds as the spatial union over the given timepoint indices.
-
-    The union ensures the fixed crop window covers the embryo at every sampled
-    timepoint, accommodating drift across the movie.
-    """
-    n_ch = len(channel_timepoint_files)
-    n_tp = len(channel_timepoint_files[0])
-
-    union_bounds = None
-    for t in timepoint_indices:
-        t = min(t, n_tp - 1)
-        if auto_crop_channel is not None:
-            crop_files = [channel_timepoint_files[auto_crop_channel][t]]
-            print(f"  Autocrop t={t}: using channel {auto_crop_channel}", flush=True)
-        else:
-            crop_files = [channel_timepoint_files[c][t] for c in range(n_ch)]
-            print(f"  Autocrop t={t}: using all {n_ch} channel(s)", flush=True)
-
-        bounds = compute_autocrop_bounds_streaming(
-            crop_files, dataset_path,
-            pad=pad,
-            threshold=threshold or 0,
-            threshold_percentile=threshold_percentile,
-            blur_sigma=blur_sigma or 0,
-        )
-        if union_bounds is None:
-            union_bounds = list(bounds)
-        else:
-            union_bounds[0] = min(union_bounds[0], bounds[0])  # z0
-            union_bounds[1] = max(union_bounds[1], bounds[1])  # z1
-            union_bounds[2] = min(union_bounds[2], bounds[2])  # y0
-            union_bounds[3] = max(union_bounds[3], bounds[3])  # y1
-            union_bounds[4] = min(union_bounds[4], bounds[4])  # x0
-            union_bounds[5] = max(union_bounds[5], bounds[5])  # x1
-
-    return tuple(union_bounds)
 
 
 def main():
@@ -191,13 +149,17 @@ def main():
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Load per-stack crop overrides (same format as fixed pipeline)
-    overrides_path = config_path.parent / "crop_overrides.yaml" if config_path else None
+    # Load per-stack crop overrides (same format as fixed pipeline). Scoped to
+    # this dataset via live_timecourse.crop_overrides_file (set by
+    # inspect_crop_bounds_timecourse.py) so multiple dataset configs sharing
+    # the same folder don't collide on one shared crop_overrides.yaml.
+    overrides_filename = _cv("crop_overrides_file", "crop_overrides.yaml")
+    overrides_path = config_path.parent / overrides_filename if config_path else None
     crop_overrides: dict = {}
     if overrides_path and overrides_path.exists():
         with open(overrides_path) as _f:
             crop_overrides = yaml.safe_load(_f) or {}
-        print(f"Loaded crop overrides for {len(crop_overrides)} stack(s).")
+        print(f"Loaded crop overrides for {len(crop_overrides)} stack(s) from {overrides_path}.")
 
     groups = build_live_stack_groups(root_dir)
     if not groups:
@@ -255,8 +217,15 @@ def main():
         channel_timepoint_files = [files[:n_tp] for files in channel_timepoint_files]
 
         # Determine crop bounds
+        #
+        # crops_to_write: list of (out_name, crop_bounds_or_None). Multiple
+        # entries arise when crop_overrides.yaml has a `crops` list for this
+        # stack (e.g. two embryos in one field of view) — mirrors the
+        # embryo-splitting behavior in convert_h5_channels_to_tiff.py.
         stack_entry = crop_overrides.get(stack_id) or {}
-        override_crop_str = stack_entry.get("crop")
+        override_crops_list = stack_entry.get("crops")   # list of crop strings
+        override_crop_str = stack_entry.get("crop")       # single crop string
+        out_name = stack_id.replace(" ", "_")
 
         def _parse_crop_override(cs):
             spec = parse_crop_arg(cs)
@@ -267,10 +236,19 @@ def main():
                 nzo, _, _ = _effective_zyx_shape(_get_h5_dataset(_f, dataset_path))
             return (0, nzo, y0o, y1o, x0o, x1o)
 
-        if override_crop_str:
+        if override_crops_list:
+            crops_to_write = []
+            for idx, cs in enumerate(override_crops_list, 1):
+                bounds = _parse_crop_override(cs)
+                z0, z1, y0, y1, x0, x1 = bounds
+                print(f"  Embryo {idx}: z={z0}:{z1}, y={y0}:{y1}, x={x0}:{x1}", flush=True)
+                crops_to_write.append((f"{out_name}_embryo{idx}", bounds))
+
+        elif override_crop_str:
             bounds = _parse_crop_override(override_crop_str)
             z0, z1, y0, y1, x0, x1 = bounds
             print(f"  Crop override: z={z0}:{z1}, y={y0}:{y1}, x={x0}:{x1}", flush=True)
+            crops_to_write = [(out_name, bounds)]
 
         elif auto_crop:
             if n_tp_for_crop is not None:
@@ -280,12 +258,13 @@ def main():
             else:
                 tp_indices = [0, n_tp - 1]
                 print(f"  Computing autocrop from first (t=0) and last (t={n_tp - 1}) timepoints...", flush=True)
-            bounds = _autocrop_from_timepoints(
+            bounds = autocrop_bounds_from_timepoints(
                 channel_timepoint_files, tp_indices, dataset_path,
                 pad, threshold, threshold_percentile, blur_sigma, auto_crop_channel,
             )
             z0, z1, y0, y1, x0, x1 = bounds
             print(f"  Autocrop bounds: z={z0}:{z1}, y={y0}:{y1}, x={x0}:{x1}", flush=True)
+            crops_to_write = [(out_name, bounds)]
 
         elif crop:
             spec = parse_crop_arg(crop)
@@ -296,19 +275,20 @@ def main():
                 bounds = (0, nz, y0c, y1c, x0c, x1c)
             else:
                 bounds = tuple(spec)
+            crops_to_write = [(out_name, bounds)]
 
         else:
-            bounds = None
+            crops_to_write = [(out_name, None)]
 
-        out_name = stack_id.replace(" ", "_")
-        if per_timepoint:
-            tp_dir = output_dir / out_name
-            print(f"  Writing per-timepoint TIFFs ({n_tp}t × {len(channel_timepoint_files)}c) → {tp_dir}/", flush=True)
-            write_tiff_per_timepoint_streaming(tp_dir, channel_timepoint_files, dataset_path, dtype, bounds)
-        else:
-            output_path = output_dir / f"{out_name}.tif"
-            print(f"  Writing TCZYX TIFF ({n_tp}t × {len(channel_timepoint_files)}c) → {output_path}", flush=True)
-            write_tiff_tczyx_streaming(output_path, channel_timepoint_files, dataset_path, dtype, bounds)
+        for crop_out_name, bounds in crops_to_write:
+            if per_timepoint:
+                tp_dir = output_dir / crop_out_name
+                print(f"  Writing per-timepoint TIFFs ({n_tp}t × {len(channel_timepoint_files)}c) → {tp_dir}/", flush=True)
+                write_tiff_per_timepoint_streaming(tp_dir, channel_timepoint_files, dataset_path, dtype, bounds)
+            else:
+                output_path = output_dir / f"{crop_out_name}.tif"
+                print(f"  Writing TCZYX TIFF ({n_tp}t × {len(channel_timepoint_files)}c) → {output_path}", flush=True)
+                write_tiff_tczyx_streaming(output_path, channel_timepoint_files, dataset_path, dtype, bounds)
         print(f"  Done. [{stack_num}/{n_stacks}]", flush=True)
 
     _proj = (config or {}).get("project", {})

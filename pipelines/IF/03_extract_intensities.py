@@ -1,8 +1,11 @@
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
 import os
 import tifffile as tiff
 import numpy as np
 import pandas as pd
-from pathlib import Path
 from scipy.ndimage import rotate
 from src.io import load_config, get_image_paths, get_masks, get_voxel_size_from_json, load_rotation_log
 from src.image import erode_labels_optimized

@@ -1,3 +1,7 @@
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
 import os
 import numpy as np
 import pandas as pd
@@ -5,7 +9,7 @@ import tifffile
 import napari
 from magicgui import magicgui
 from skimage.measure import regionprops_table
-from pathlib import Path
+from src.conversion import load_hyperstack_czyx
 from src.io import load_config
 
 
@@ -50,7 +54,7 @@ def update_centroids():
 def load_file(index):
     global image_layer, label_layer
 
-    image = tifffile.imread(raw_files[index])
+    image, _ = load_hyperstack_czyx(raw_files[index])
     labels = tifffile.imread(label_files[index])
 
     viewer.layers.clear()

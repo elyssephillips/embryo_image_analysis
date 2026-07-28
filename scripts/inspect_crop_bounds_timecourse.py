@@ -1,54 +1,60 @@
-"""Interactive crop-bounds inspector — run this before convert_h5_to_tiff.py.
+"""Interactive crop-bounds inspector for live-imaging (timecourse) data.
 
-Shows the max-Z MIP for each stack with the current auto-crop box overlaid.
-Drag a rectangle to redefine the XY crop; press Enter to accept, S to skip,
-Q to quit. For stacks with multiple embryos in one field of view, draw one
-box per embryo (A to add each) so each gets its own cropped TIFF instead of
-being auto-cropped together as a single blob. Accepted overrides are saved
-to configs/IF/crop_overrides.yaml, and convert_h5_to_tiff.py picks them up
-automatically — no override needed for stacks that are already single-embryo
-and fine with plain auto-crop, just skip those with S.
+Same idea as pipelines/IF/inspect_crop_bounds.py but for live_timecourse
+datasets: shows each stack's first and last timepoint MIP (per channel, 2
+rows) with the current auto-crop box overlaid, since embryo position can
+drift across a long movie and a box that looks right at t=0 may miss the
+embryo by the last frame. Drag to draw an XY box; press Enter to accept, S
+to skip, Q to quit. For stacks with multiple embryos in one field of view,
+draw one box per embryo (A to add each) so each gets its own cropped
+TIFF/timepoint-folder instead of being auto-cropped together as a single
+blob. Accepted overrides are saved next to the config, named by the config's
+own live_timecourse.crop_overrides_file (falling back to crop_overrides.yaml
+if unset) so multiple dataset configs sharing a folder don't collide on one
+shared overrides file. Same format as the fixed-IF pipeline; convert_h5_timecourse_to_tiff.py
+picks the same file up automatically.
 
-Pipeline order: new_if_config.py -> fill in config.yaml TODOs ->
-inspect_crop_bounds.py (this script) -> convert_h5_to_tiff.py.
+Uses each stack's scope-generated mip/*.max.z.tiff previews when available
+(much faster than re-streaming full h5 volumes just to look at them),
+falling back to computing the MIP directly from the h5 file otherwise.
 
-To run: edit the settings block below if needed (defaults are almost always
-fine), then click VS Code's "Run Python File" button (or Ctrl+F5) — no
-terminal command needed. Needs a display (X11/VNC), since it opens a
-matplotlib window.
+To run: edit CONFIG_PATH / STACKS below if needed, then click VS Code's "Run
+Python File" button (or Ctrl+F5) — no terminal command needed. Needs a
+display (X11/VNC), since it opens a matplotlib window.
 """
 import sys
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from collections import Counter
+
 import h5py
 import numpy as np
+import tifffile
+from skimage import io as skio
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.widgets import RectangleSelector
 import yaml
 
 from src.conversion import (
-    build_stack_groups,
-    compute_autocrop_bounds_streaming,
-    detect_h5_layout,
-    find_h5_file,
+    autocrop_bounds_from_timepoints,
+    build_live_stack_groups,
+    find_h5_files_sorted,
     get_config_value,
-    get_h5_conversion_config,
     load_yaml_config,
     _effective_zyx_shape,
     _get_h5_dataset,
     _read_zslice,
 )
 
-CONFIG_PATH = PROJECT_ROOT / "configs" / "IF" / "config.yaml"
-
-# ============================== EDIT THESE (optional) ==============================
-STACKS = None   # e.g. ["stack_0-ctrl 1 2 3", "stack_7-meki"] to restrict, or None for all
-# =====================================================================================
+# ============================== EDIT THESE ==============================
+CONFIG_PATH = PROJECT_ROOT / "configs" / "other live images" / "260721_e45c_fgf_oct4_snap.yaml"
+STACKS = None   # e.g. ["stack_0", "stack_9-fgf "] to restrict, or None for all
+# ==========================================================================
 
 OVERRIDES_FILE = "crop_overrides.yaml"
 
@@ -71,10 +77,28 @@ def save_overrides(path: Path, overrides: dict) -> None:
 
 
 # ---------------------------------------------------------------------------
-# MIP helper (full field, no cropping)
+# MIP helpers — prefer the scope's own precomputed mip/*.max.z.* preview,
+# fall back to streaming the h5 volume only if that's missing.
 # ---------------------------------------------------------------------------
 
-def compute_mip_full(h5_file: Path, dataset_path: str | None) -> np.ndarray:
+def _find_precomputed_mip(h5_path: Path) -> Path | None:
+    name = h5_path.name
+    stem = h5_path.stem
+    for suffix in (".lux.h5", ".h5", ".hdf5"):
+        if name.lower().endswith(suffix):
+            stem = name[: -len(suffix)]
+            break
+    mip_dir = h5_path.parent / "mip"
+    if not mip_dir.is_dir():
+        return None
+    for ext in ("tiff", "tif", "jpg", "jpeg"):
+        candidate = mip_dir / f"{stem}.max.z.{ext}"
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def _compute_mip_from_h5(h5_file: Path, dataset_path: str | None) -> np.ndarray:
     with h5py.File(h5_file, "r") as f:
         ds = _get_h5_dataset(f, dataset_path)
         nz, ny, nx = _effective_zyx_shape(ds)
@@ -85,19 +109,31 @@ def compute_mip_full(h5_file: Path, dataset_path: str | None) -> np.ndarray:
     return mip
 
 
+def get_mip(h5_file: Path, dataset_path: str | None) -> np.ndarray:
+    precomputed = _find_precomputed_mip(h5_file)
+    if precomputed is not None:
+        img = tifffile.imread(str(precomputed)) if precomputed.suffix.lower() in (".tif", ".tiff") \
+            else skio.imread(str(precomputed))
+        return np.asarray(img, dtype=np.float32)
+    return _compute_mip_from_h5(h5_file, dataset_path)
+
+
 # ---------------------------------------------------------------------------
 # Interactive inspector for one stack
 # ---------------------------------------------------------------------------
 
 def inspect_stack(
     stack_id: str,
-    channel_h5_files: list,
-    channel_names: list,
-    dataset_path: str | None,
+    channel_labels: list,
+    t0_mips: list,
+    t_last_mips: list,
+    t0_idx: int,
+    t_last_idx: int,
     auto_bounds,           # (z0, z1, y0, y1, x0, x1) or None
     existing_override,     # str | list[str] | None
 ) -> tuple:
-    """Show MIP + current bounds; let user draw one or more crop rectangles.
+    """Show t=0 (top row) + t=last (bottom row) MIPs per channel; let the
+    user draw one or more crop rectangles, mirrored across every subplot.
 
     Controls:
       Drag     – draw a crop box (lime)
@@ -110,45 +146,37 @@ def inspect_stack(
     Returns (action, crops_list) where action is 'accept', 'skip', or 'quit'
     and crops_list is a list of (y0, y1, x0, x1) tuples, or None (use auto).
     """
-    n = len(channel_h5_files)
-    fig, axes = plt.subplots(1, n, figsize=(5 * n, 5), squeeze=False)
+    n = len(channel_labels)
+    fig, axes = plt.subplots(2, n, figsize=(5 * n, 10), squeeze=False)
 
-    # Disconnect matplotlib's default key handler so 's' doesn't open a save
-    # dialog and other shortcuts don't interfere with our controls.
     if hasattr(fig.canvas, "manager") and hasattr(fig.canvas.manager, "key_press_handler_id"):
         fig.canvas.mpl_disconnect(fig.canvas.manager.key_press_handler_id)
 
     source = f"override: {existing_override}" if existing_override else "auto-crop"
     fig.suptitle(
-        f"{stack_id}  [{source}]\n"
+        f"{stack_id}  [{source}]   top row: t={t0_idx}   bottom row: t={t_last_idx}\n"
         "Drag to draw crop  |  A = add box  |  E/Enter = save  |  S = skip  |  Q = quit",
         fontsize=9,
     )
 
-    print(f"  Computing MIPs...", flush=True)
-    mips = [compute_mip_full(h, dataset_path) for h in channel_h5_files]
+    all_axes = list(axes.flat)  # row-major: [t0 ch0, t0 ch1, ..., tlast ch0, tlast ch1, ...]
+    all_mips = list(t0_mips) + list(t_last_mips)
+    row_labels = [f"{lbl} (t={t0_idx})" for lbl in channel_labels] + \
+                 [f"{lbl} (t={t_last_idx})" for lbl in channel_labels]
 
-    current_rects = [None] * n   # lime: the box currently being drawn
-    state = {"new_yx": None}     # (y0, y1, x0, x1) of the current drawn box
-    added_crops = []             # finalized list of (y0, y1, x0, x1) added via A
-
-    for i, (mip, ax) in enumerate(zip(mips, axes[0])):
+    for ax, mip, label in zip(all_axes, all_mips, row_labels):
         p1, p99 = np.percentile(mip, (1, 99))
         ax.imshow(mip, cmap="gray", vmin=p1, vmax=p99, origin="upper")
-        label = channel_names[i] if i < len(channel_names) else f"ch{i}"
         ax.set_title(label, fontsize=9)
         ax.axis("off")
 
-        # Draw current bounds in yellow
         if auto_bounds is not None:
             z0, z1, y0, y1, x0, x1 = auto_bounds
             ax.add_patch(mpatches.Rectangle(
                 (x0, y0), x1 - x0, y1 - y0,
                 linewidth=1.5, edgecolor="yellow", facecolor="none",
-                label="current",
             ))
 
-    # Small legend in the first axis
     axes[0, 0].legend(
         handles=[
             mpatches.Patch(edgecolor="yellow", facecolor="none", label="current bounds"),
@@ -158,8 +186,12 @@ def inspect_stack(
         loc="lower right", fontsize=7, framealpha=0.6,
     )
 
+    current_rects = [None] * len(all_axes)
+    state = {"new_yx": None}
+    added_crops = []
+
     def _update_current_rects(y0n, y1n, x0n, x1n):
-        for i, ax in enumerate(axes[0]):
+        for i, ax in enumerate(all_axes):
             if current_rects[i] is not None:
                 current_rects[i].remove()
             r = mpatches.Rectangle(
@@ -179,7 +211,7 @@ def inspect_stack(
         print(f"  Drawn: y={y0n}:{y1n}  x={x0n}:{x1n}  (A to add, Enter to accept)", flush=True)
         _update_current_rects(y0n, y1n, x0n, x1n)
 
-    # Attach selector to first axis only; the callback mirrors to all axes
+    # Attach the selector to the top-left axis only; mirrored to all axes above.
     selector = RectangleSelector(   # noqa: F841 (kept alive by reference)
         axes[0, 0], on_select,
         useblit=True, button=[1],
@@ -190,15 +222,13 @@ def inspect_stack(
     result = {"action": None}
 
     def _add_current():
-        """Commit the currently-drawn (lime) box to the added (cyan) list."""
         yx = state["new_yx"]
         if yx is None:
             print("  Nothing drawn to add.", flush=True)
             return
         y0n, y1n, x0n, x1n = yx
         added_crops.append(yx)
-        # Repaint the lime rect as cyan to indicate it has been committed
-        for i, ax in enumerate(axes[0]):
+        for i, ax in enumerate(all_axes):
             if current_rects[i] is not None:
                 current_rects[i].remove()
                 current_rects[i] = None
@@ -230,16 +260,10 @@ def inspect_stack(
 
     action = result.get("action", "skip")
 
-    # Build the crops_list to return.
-    # Auto-flush any currently-drawn (lime) box so that the workflow
-    # "draw box1 → A → draw box2 → Enter" saves both boxes, not just box1.
     if action == "accept":
         if state["new_yx"] is not None:
             added_crops.append(state["new_yx"])
-        if added_crops:
-            crops_list = added_crops
-        else:
-            crops_list = None   # nothing drawn → accept auto bounds
+        crops_list = added_crops if added_crops else None
     else:
         crops_list = None
 
@@ -252,39 +276,41 @@ def inspect_stack(
 
 def main():
     config_path = CONFIG_PATH
-    config = load_yaml_config(config_path) if config_path.exists() else {}
-    h5_config = get_h5_conversion_config(config)
+    if not config_path.exists():
+        print(f"Config not found: {config_path} — edit CONFIG_PATH at the top of this script.")
+        sys.exit(1)
 
-    root_dir = Path(get_config_value(h5_config, ["root_dir"]))
-    dataset_path = get_config_value(h5_config, ["dataset_path"])
-    channel_names = get_config_value(config, ["microscopy", "channel_names"]) or []
-    auto_crop_channel       = get_config_value(h5_config, ["auto_crop_channel"], None)
-    auto_crop_threshold     = get_config_value(h5_config, ["auto_crop_threshold"], 0) or 0
-    auto_crop_threshold_pct = get_config_value(h5_config, ["auto_crop_threshold_percentile"], None)
-    auto_crop_blur_sigma    = get_config_value(h5_config, ["auto_crop_blur_sigma"], 0)
-    pad                     = get_config_value(h5_config, ["pad"], 0)
+    config = load_yaml_config(config_path)
+    live_cfg = config.get("live_timecourse") or {}
 
-    overrides_path = config_path.parent / OVERRIDES_FILE
+    def _cv(keys, default=None):
+        return get_config_value(live_cfg, keys if isinstance(keys, list) else [keys], default)
+
+    root_dir = Path(_cv("root_dir"))
+    dataset_path = _cv("dataset_path")
+    auto_crop_channel      = _cv("auto_crop_channel")
+    auto_crop_threshold    = _cv("auto_crop_threshold", 0) or 0
+    auto_crop_threshold_pc = _cv("auto_crop_threshold_percentile")
+    auto_crop_blur_sigma   = _cv("auto_crop_blur_sigma", 0)
+    pad                    = _cv("pad", 0)
+    n_tp_for_crop          = _cv("auto_crop_n_timepoints")  # None -> first+last only
+    skip_stacks            = set(_cv("skip_stacks") or [])
+
+    channel_name_by_index = {
+        c["index"]: c.get("name")
+        for c in (get_config_value(config, ["microscopy", "channels"]) or [])
+        if isinstance(c, dict) and "index" in c
+    }
+
+    # Scoped to this dataset via live_timecourse.crop_overrides_file so multiple
+    # dataset configs sharing the same folder don't collide on one shared file.
+    overrides_filename = _cv("crop_overrides_file", OVERRIDES_FILE)
+    overrides_path = config_path.parent / overrides_filename
     overrides = load_overrides(overrides_path)
 
-    mode, info = detect_h5_layout(root_dir)
-    if mode == "flat":
-        groups = build_stack_groups(root_dir)
-    elif mode == "wells":
-        groups = {}
-        for well_name in sorted(info["wells"]):
-            well_groups = build_stack_groups(root_dir / well_name / "raw")
-            for sid in well_groups:
-                if sid in groups:
-                    print(f"  WARNING: stack id {sid!r} appears in more than one well; "
-                          f"only the last one ({well_name}) will be shown here.")
-            groups.update(well_groups)
-    elif mode == "timecourse":
-        print("This looks like a live-imaging layout (multiple h5 files per channel folder). "
-              "inspect_crop_bounds.py is for fixed IF data only.")
-        sys.exit(1)
-    else:
-        print(f"No stack_*_channel_* folders found under {root_dir} (flat or nested).")
+    groups = build_live_stack_groups(root_dir)
+    if not groups:
+        print(f"No stack_*_channel_* folders found under {root_dir}. Check CONFIG_PATH's live_timecourse.root_dir.")
         sys.exit(1)
 
     stack_ids = sorted(groups.keys())
@@ -294,17 +320,25 @@ def main():
             print(f"Stack(s) not found: {missing}")
             sys.exit(1)
         stack_ids = [s for s in stack_ids if s in STACKS]
+    if skip_stacks:
+        stack_ids = [s for s in stack_ids if s not in skip_stacks]
 
-    # Determine expected channel set from the most common set across all stacks,
-    # then flag any that deviate (same logic as convert_h5_channels_to_tiff.py).
-    from collections import Counter
-    all_channel_sets = {sid: frozenset(ci for ci, _ in groups[sid]) for sid in stack_ids}
-    expected_channels = Counter(all_channel_sets.values()).most_common(1)[0][0]
+    # Auto-skip stacks that already have a saved override, unless the caller
+    # explicitly named them in STACKS (which means "review this one again").
+    if not STACKS:
+        already_done = [s for s in stack_ids if s in overrides]
+        if already_done:
+            print(f"Skipping {len(already_done)} stack(s) with an existing override "
+                  f"(list them in STACKS to review again): {already_done}\n")
+        stack_ids = [s for s in stack_ids if s not in overrides]
+
+    all_ch_sets = {sid: frozenset(ci for ci, _ in groups[sid]) for sid in stack_ids}
+    expected_channels = Counter(all_ch_sets.values()).most_common(1)[0][0]
     bad_stacks = set()
     for sid in stack_ids:
-        ch_set = all_channel_sets[sid]
+        ch_set = all_ch_sets[sid]
         missing_ch = sorted(expected_channels - ch_set)
-        extra_ch   = sorted(ch_set - expected_channels)
+        extra_ch = sorted(ch_set - expected_channels)
         if missing_ch or extra_ch:
             bad_stacks.add(sid)
             msg = f"  WARNING: {sid}"
@@ -316,7 +350,7 @@ def main():
     if bad_stacks:
         print(f"\n{len(bad_stacks)} stack(s) have channel mismatches and will be skipped.\n")
 
-    print(f"Found {len(stack_ids)} stack(s) ({len(bad_stacks)} skipped).  Overrides already saved: {sorted(overrides)}\n")
+    print(f"Found {len(stack_ids)} stack(s) ({len(bad_stacks)} skipped). Overrides already saved: {sorted(overrides)}\n")
     print("Controls: drag to draw crop box | A = add box | E/Enter = save | S = skip | Q = quit\n")
 
     for i, stack_id in enumerate(stack_ids, 1):
@@ -324,30 +358,41 @@ def main():
             print(f"[{i}/{len(stack_ids)}] {stack_id} — SKIPPED (channel mismatch)")
             continue
 
-        items_sorted   = sorted(groups[stack_id], key=lambda x: x[0])
-        channel_h5_files = [find_h5_file(f) for _, f in items_sorted]
+        items_sorted = sorted(groups[stack_id], key=lambda x: x[0])
+        channel_indices = [ci for ci, _ in items_sorted]
+        channel_timepoint_files = [find_h5_files_sorted(folder) for _, folder in items_sorted]
 
-        # Compute auto-crop bounds (same logic as the main script)
-        crop_files = (
-            [channel_h5_files[auto_crop_channel]]
-            if auto_crop_channel is not None
-            else channel_h5_files
+        tp_counts = [len(f) for f in channel_timepoint_files]
+        if len(set(tp_counts)) > 1:
+            print(f"  WARNING: unequal timepoint counts across channels {tp_counts}; using minimum.")
+        n_tp = min(tp_counts)
+        channel_timepoint_files = [files[:n_tp] for files in channel_timepoint_files]
+        t0_idx, t_last_idx = 0, n_tp - 1
+
+        channel_labels = [channel_name_by_index.get(ci) or f"ch{ci}" for ci in channel_indices]
+
+        tp_indices = (
+            [int(x) for x in np.linspace(0, n_tp - 1, n_tp_for_crop, dtype=int)]
+            if n_tp_for_crop is not None else [t0_idx, t_last_idx]
         )
         try:
             print(f"[{i}/{len(stack_ids)}] {stack_id} — computing auto-crop bounds...")
-            auto_bounds = compute_autocrop_bounds_streaming(
-                crop_files, dataset_path, pad=pad,
-                threshold=auto_crop_threshold,
-                threshold_percentile=auto_crop_threshold_pct,
-                blur_sigma=auto_crop_blur_sigma,
+            auto_bounds = autocrop_bounds_from_timepoints(
+                channel_timepoint_files, tp_indices, dataset_path,
+                pad, auto_crop_threshold, auto_crop_threshold_pc, auto_crop_blur_sigma,
+                auto_crop_channel,
             )
             z0, z1, y0, y1, x0, x1 = auto_bounds
             print(f"  Auto: z={z0}:{z1}  y={y0}:{y1}  x={x0}:{x1}")
         except Exception as e:
             print(f"  Auto-crop failed ({e}) — showing full field.")
-            with h5py.File(channel_h5_files[0], "r") as f:
+            with h5py.File(channel_timepoint_files[0][0], "r") as f:
                 nz, ny, nx = _effective_zyx_shape(_get_h5_dataset(f, dataset_path))
             auto_bounds = (0, nz, 0, ny, 0, nx)
+
+        print("  Loading t=0 and t=last MIPs (using precomputed mip/ previews where available)...", flush=True)
+        t0_mips = [get_mip(files[t0_idx], dataset_path) for files in channel_timepoint_files]
+        t_last_mips = [get_mip(files[t_last_idx], dataset_path) for files in channel_timepoint_files]
 
         stack_entry = overrides.get(stack_id, {})
         existing = stack_entry.get("crops") or stack_entry.get("crop")
@@ -355,7 +400,7 @@ def main():
             print(f"  Existing override: {existing}")
 
         action, crops_list = inspect_stack(
-            stack_id, channel_h5_files, channel_names, dataset_path,
+            stack_id, channel_labels, t0_mips, t_last_mips, t0_idx, t_last_idx,
             auto_bounds, existing,
         )
 
@@ -365,7 +410,6 @@ def main():
         elif action == "accept":
             z0, z1 = auto_bounds[0], auto_bounds[1]
             if crops_list is not None and len(crops_list) > 1:
-                # Multiple embryos — save as a list
                 crop_strs = [f"{z0}:{z1}:{y0n}:{y1n}:{x0n}:{x1n}" for y0n, y1n, x0n, x1n in crops_list]
                 overrides[stack_id] = {"crops": crop_strs}
                 print(f"  {len(crop_strs)} crops saved: {crop_strs}")
@@ -375,13 +419,12 @@ def main():
                 overrides[stack_id] = {"crop": crop_str}
                 print(f"  Override saved: {crop_str}")
             else:
-                # Nothing drawn — lock in the auto bounds
                 crop_str = f"{z0}:{z1}:{y0}:{y1}:{x0}:{x1}"
                 overrides[stack_id] = {"crop": crop_str}
                 print(f"  Auto bounds locked in: {crop_str}")
             save_overrides(overrides_path, overrides)
         else:
-            print(f"  Skipped.")
+            print("  Skipped.")
 
     print("\nDone.")
 

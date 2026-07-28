@@ -1,11 +1,39 @@
-raw_data_dir: "/mnt/md1/elysse/for r21/meki/nuclei"
-segmentation_dir_raw: "/mnt/md1/elysse/for r21/meki/nuclei/segmentation"
-segmentation_dir: "/mnt/md1/elysse/for r21/meki/nuclei/segmentation/cleaned"
-output_dir: "/mnt/md1/elysse/for r21/meki/nuclei/analysis"
+name: "MEKi TE Patterning IF"
+
+raw_data_dir: "/mnt/md1/elysse/20260604_fixed/cropped/cdx2 ppmlc gata3_drift_corrected"
+rotated_dir: "/mnt/md1/elysse/20260604_fixed/cropped/cdx2 ppmlc gata3_drift_corrected/rotated"
+segmentation_dir: "/mnt/md1/elysse/20260604_fixed/cropped/cdx2 ppmlc gata3_drift_corrected/nucleimask/gata3/cleaned"
+segmentation_dir_raw: "/mnt/md1/elysse/20260604_fixed/cropped/cdx2 ppmlc gata3_drift_corrected/nucleimask/gata3"
+output_dir: "/mnt/md1/elysse/20260604_fixed/cropped/cdx2 ppmlc gata3_drift_corrected/analysis"
+metadata_json: "/mnt/md1/elysse/20260604_fixed/2026-06-04_121950/raw/stack_0-ctrl 1 2 3_channel_0-DAPI_obj_bottom/Cam_short_00000.json"  # TODO: point at a Cam_*.json from this dataset's DAPI channel folder
+rotation_log: "/mnt/md1/elysse/20260604_fixed/cropped/cdx2 ppmlc gata3/analysis/rotation_log.csv"
 
 file_extension: ".tif"
 
+datasets: "20260604_meki_cdx2_ppmlc_gata3"
+
 microscopy:
-  voxel_size_zyx: [2, 0.208, 0.208]
+  voxel_size_zyx: [0.55, 0.122666664, 0.122666664]  # metadata is wrong!! something wrong with the scope TODO: verify against this dataset's Cam_*.json processingInformation.voxel_size_um
   channels:
     dapi: 0
+    gfp: 1
+    rfp: 2
+    cy5: 3
+  channel_names: ["dapi", "gata3", "ppmlc", "cdx2"]  # TODO: verify these are the actual stains for THIS dataset, not carried over from the template
+
+single_file_mode: false
+
+# Optional HDF5 conversion settings. Add these to the same config file for a pipeline-style setup.
+h5_conversion:
+  root_dir: "/mnt/md1/elysse/20260604_fixed/cropped/cdx2 ppmlc gata3_drift_corrected"
+  dataset_path: null  # optional HDF5 dataset path, e.g. "/images/data"
+
+  auto_crop: true
+  auto_crop_channel: 0           # channel index for crop bounds (null = all channels; 0 = DAPI)
+  auto_crop_threshold: null      # absolute intensity cutoff (null = use threshold_percentile instead)
+  auto_crop_threshold_percentile: 90  # percentile of the DAPI MIP to use as threshold
+  auto_crop_blur_sigma: 10       # gaussian blur applied to MIP before thresholding
+  pad: 150
+  crop: null  # manual crop: y0:y1:x0:x1 or z0:z1:y0:y1:x0:x1
+  dtype: "float32"
+  confirm_autocrop: true
