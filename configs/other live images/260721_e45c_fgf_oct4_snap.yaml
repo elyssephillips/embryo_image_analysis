@@ -14,7 +14,7 @@ microscopy:
   software_version: "3.17.6-beta"
 
   # ZYX voxel size in microns (from processingInformation.voxel_size_um)
-  voxel_size_zyx_um: [3.0, 0.184, 0.184]
+  voxel_size_zyx_um: [0.55, 0.184, 0.184]
   image_size_zyx: [94, 2368, 4432]
 
   detection_objective:
@@ -47,7 +47,7 @@ stacks:
   - id: "stack_0"
     condition: "control"  # control
     folder: "stack_0_channel_0-far red_obj_bottom"
-    notes: ""
+    notes: "proper crop saved, double positive"
   - id: "stack_1"
     condition: "control"  # control
     folder: "stack_1_channel_1_obj_bottom"
@@ -55,58 +55,58 @@ stacks:
   - id: "stack_2"
     condition: "control"  # control
     folder: "stack_2_channel_0-far red_obj_bottom"
-    notes: ""
+    notes: "embryo1: bottom right snap+ stays in frame in current crop; all else don't. genuinely out ofwhole frame not a cropping issue. can further crop for this single embryo. embryo 2 gata3+ nicely crops other embryo that is in frame from raw"
   - id: "stack_3"
     condition: "control"  # control
     folder: "stack_3_channel_0-far red_obj_bottom"
-    notes: ""
+    notes: "cropped for 2 embryos, one snap+ and one oct4+. crop can be slimmed."
   - id: "stack_4"
     condition: "control"  # control
     folder: "stack_4_channel_0-far red_obj_bottom"
-    notes: ""
+    notes: "2 embryos keep in frame in the crop, the top double positive movees up and out of frame. needs to be re-cropped. the one that is on bottom and comes in and out is in stack 5 so doesnt need to be here."
   - id: "stack_5"
     condition: "control"  # control
     folder: "stack_5_channel_0-far red_obj_bottom"
-    notes: ""
+    notes: "2 that are in frame are in frame in the crop. can be tightened. one snap pos the other double pos. "
   - id: "stack_6"
     condition: "control"  # control
     folder: "stack_6_channel_0-far red_obj_bottom"
-    notes: ""
+    notes: "top double pos got out of frame, but not until last two grames. should be re-cropped but not critically.other two are snap+ and stay in. "
   - id: "stack_7"
     condition: "control"  # control
     folder: "stack_7_channel_0-far red_obj_bottom"
-    notes: ""
+    notes: "two embryos stay in frame in crop, can be further slimmed down. one snap pos, other oct4 pos."
   - id: "stack_8"
     condition: "control"  # control
     folder: "stack_8_channel_0-far red_obj_bottom"
-    notes: ""
+    notes: "two stay in frame, one snap pos other oct4 pos. top snap goes out of frame in raw too. can be slimmed."
   - id: "stack_9-fgf "
     condition: "fgf"
+    notes: "embryo1: trio of embryos--bottom double pos jumps out of frame on bottom. but then goes out of frame in z direction? so probably fine. one is double pos and one snap pos. embryo2: bumps out of frame on bottom and right side, but is present still in stack 10. can be deleted."
     folder: "stack_9-fgf _channel_0-far red_obj_bottom"
-    notes: ""
   - id: "stack_10"
     condition: "fgf"  
     folder: "stack_10_channel_0-far red_obj_bottom"
-    notes: ""
+    notes: top embryos are in stack 9 so can be cropped out. embryo on left should be cropped down. middle 2 double pos are hte only ones that stay in, so those two can be cropped down too."
   - id: "stack_11"
     condition: "fgf"  # TODO: no label in folder name to guess from
     folder: "stack_11_channel_0-far red_obj_bottom"
-    notes: ""
+    notes: "bottom right snap goes out of frame in raw. so does center oct4. middle three double pos stay in frame, but that bottom one is in previous stack so doesnt need to be in this one."
   - id: "stack_12"
     condition: "fgf"  # TODO: no label in folder name to guess from
     folder: "stack_12_channel_0-far red_obj_bottom"
-    notes: ""
+    notes: "middle snap goes out of frame in raw. bottom double pos does too. right snap should be cropped down. left oct 4 goes out of frame for a few frames, should be re-cropped but maybe not essential."
   - id: "stack_13-fgf oct 4 snap"
     condition: "fgf"
     folder: "stack_13-fgf oct 4 snap_channel_0-far red_obj_bottom"
-    notes: ""
+    notes: "three snap pos (one double pos) on right stay in frame. focus on these, these go out of frame in previous stack.  "
   - id: "stack_14-fgf snap oct 4"
     condition: "fgf"
     folder: "stack_14-fgf snap oct 4_channel_0-far red_obj_bottom"
-    notes: ""
+    notes: "right embryo goes out of frame on bottom in raw."
 
 # ── Timecourse TIFF conversion ────────────────────────────────────────────────
-# Run: python scripts/convert_h5_timecourse_to_tiff.py --config "configs/other live images/260721_e45c_fgf_oct4_snap.yaml"
+# Run: python pipelines/timecourse/convert_h5_timecourse_to_tiff.py --config "configs/other live images/260721_e45c_fgf_oct4_snap.yaml"
 live_timecourse:
   root_dir: "/mnt/md1/elysse/260721_E4.5c_fgf_oct4_snap/2026-07-21_184317/raw"
   output_dir: "/mnt/md1/elysse/260721_E4.5c_fgf_oct4_snap/tifs"

@@ -116,7 +116,7 @@ def main():
         print(
             "This looks like live-imaging data (multiple h5 files per channel folder, "
             "one per timepoint), not a fixed-sample IF layout. Use "
-            "scripts/convert_h5_timecourse_to_tiff.py instead — this script is for fixed IF only."
+            "pipelines/timecourse/convert_h5_timecourse_to_tiff.py instead — this script is for fixed IF only."
         )
         return
 

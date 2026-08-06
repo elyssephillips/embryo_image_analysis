@@ -10,6 +10,7 @@
 | 20260416_fgf_cdx2_ppmlc_gata3 | FGF TE patterning IF — CDX2, GATA3, ppMLC | ? | `/mnt/md1/elysse/20260416_fgf_cdx2_ppmlc_gata3/` | — | in progress | <!-- row:20260416_fgf_cdx2_ppmlc_gata3 -->
 
 | 20260604_meki_cdx2_ppmlc_gata3 | IF E3.5-4.5 meki with mural gata3 cdx2 panel | 3 C, 6 meki + 7 testing second panel | `/mnt/md1/elysse/20260604_fixed` | 2026-07-16 | conversion done | <!-- row:20260604_meki_cdx2_ppmlc_gata3 -->
+| 20260730_c_meki_gata3_nmmiia_cdx2 | fixed MEKi or C embryos for mural markers | combined | `/mnt/md1/elysse/20260730_c_meki_gata3_nmmiia_cdx2` | 2026-08-04 | converting | <!-- row:20260730_c_meki_gata3_nmmiia_cdx2 -->
 <!-- index-end -->
 
 ---
@@ -84,3 +85,17 @@
 **Next:** analyze c and meki patterning for cdx2 gata3 params
 
 <!-- ds-end:20260604_meki_cdx2_ppmlc_gata3 -->
+
+<!-- ds:20260730_c_meki_gata3_nmmiia_cdx2 -->
+## 20260730_c_meki_gata3_nmmiia_cdx2
+
+**Description:** fixed MEKi or C embryos for mural markers  
+**N / Conditions:** combined  
+**Data path:** /mnt/md1/elysse/20260730_c_meki_gata3_nmmiia_cdx2
+
+### 2026-08-04 16:37 | convert_h5_to_tiff.py
+**Output:** /mnt/md1/elysse/20260730_c_meki_gata3_nmmiia_cdx2/cropped
+**Done:** tx E3.5-E4.5 then fixed
+**Next:** 
+
+<!-- ds-end:20260730_c_meki_gata3_nmmiia_cdx2 -->

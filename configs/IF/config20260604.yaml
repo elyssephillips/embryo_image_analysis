@@ -1,12 +1,12 @@
 name: "MEKi TE Patterning IF"
 
-raw_data_dir: "/mnt/md1/elysse/20260604_fixed/cropped"
-rotated_dir: "/mnt/md1/elysse/20260604_fixed/cropped/rotated"
-segmentation_dir: "/mnt/md1/elysse/20260604_fixed/nucleimask/cleaned"
-segmentation_dir_raw: "/mnt/md1/elysse/20260604_fixed/nucleimask"
-output_dir: "/mnt/md1/elysse/20260604_fixed/analysis"
+raw_data_dir: "/mnt/md1/elysse/20260604_fixed/cropped/cdx2 ppmlc gata3_drift_corrected/"
+rotated_dir: "/mnt/md1/elysse/20260604_fixed/cropped/cdx2 ppmlc gata3_drift_corrected/rotated"
+segmentation_dir: "/mnt/md1/elysse/20260604_fixed/cropped/cdx2 ppmlc gata3_drift_corrected/nucleimask/gata3/cleaned"
+segmentation_dir_raw: "/mnt/md1/elysse/20260604_fixed/cropped/cdx2 ppmlc gata3_drift_corrected/nucleimask/gata3"
+output_dir: "/mnt/md1/elysse/20260604_fixed/cropped/cdx2 ppmlc gata3_drift_corrected/analysis"
 metadata_json: "/mnt/md1/elysse/20260604_fixed/2026-06-04_121950/raw/stack_0-ctrl 1 2 3_channel_0-DAPI_obj_bottom/Cam_short_00000.json"
-rotation_log: "/mnt/md1/elysse/20260604_fixed/analysis/rotation_log.csv"
+rotation_log: "/mnt/md1/elysse/20260604_fixed/cropped/cdx2 ppmlc gata3_drift_corrected/rotated/rotation_log.csv"
 
 file_extension: ".tif"
 

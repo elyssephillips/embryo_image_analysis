@@ -1,0 +1,112 @@
+project:
+  name: "260721_e45c_fgf_oct4_snap_2"
+  date: "2026-07-22"
+  dataset: "260721_e45c_fgf_oct4_snap_2"
+  notes: ""
+
+paths:
+  raw_data_dir: "/mnt/md0/elysse/260721_e45c_fgf_oct4_snap_2/tifs"
+  output_dir: "/mnt/md0/elysse/260721_e45c_fgf_oct4_snap_2/analysis"
+
+microscopy:
+  instrument: "TruLive3D"
+  serial_number: "40244"
+  software_version: "3.17.6-beta"
+
+  # ZYX voxel size in microns (from processingInformation.voxel_size_um)
+  voxel_size_zyx_um: [0.55, 0.184, 0.184] #estimated--metadata is wrong and lux aquisition wrong
+  image_size_zyx: [94, 2368, 4432]
+
+  detection_objective:
+    model: ""  # TODO: not in Cam_*.json — fill in from the scope's objective config
+    magnification: 25.0
+    na: 1.1
+    immersion: ""  # TODO
+    wd_mm: null  # TODO
+
+  channels:
+    - index: 0
+      name: "far red"
+      laser_nm: null  # TODO: not in Cam_*.json
+      exposure_ms: null  # TODO: not in Cam_*.json
+    - index: 1
+      name: "ch1"  # TODO: verify channel identity
+      laser_nm: null  # TODO: not in Cam_*.json
+      exposure_ms: null  # TODO: not in Cam_*.json
+
+acquisition:
+  n_timepoints: 43
+  interval_s: 900.0
+  interval_min: 15.0
+  total_duration_h: 10.5
+  start_time: "2026-07-22 12:22:53"   # first frame, stack_0
+  end_time: "2026-07-22 22:52:53"     # last frame, stack_0
+
+stacks:
+
+  - id: "stack_0"
+    condition: "control"  # TODO: no label in folder name to guess from
+    folder: "stack_0_channel_0-far red_obj_bottom"
+    notes: " embryo1: doesnt implant.embryo2: theres like a ton of ICM? and on the bottom/split. starts to implant around 22. lumen doesnt really collapse and outgrowth is small. embryo3: doesnt implant, bottom gets really lumpy and like has little bubbles/gaps?"
+  - id: "stack_1"
+    condition: "control"  # TODO: no label in folder name to guess from
+    folder: "stack_1_channel_0-far red_obj_bottom"
+    notes: "embryo1: webby membrane. embryo on side at first. cells pile up at mural but doesnt implant. same with embryo2. embryo 3 is next to other embryos and one is implanting but i cant tell who.embryo 4 is sitting high above the mother embryos, can delete. embryo 5 gets a pile up of cells at mural and gets a little bubble, i think starts to outgrow but cant really tell. embryo 6 cant tellwhere icm is, dont think it implants   "
+  - id: "stack_3"
+    condition: ""  # TODO: no label in folder name to guess from
+    folder: "stack_3_channel_0-far red_obj_bottom"
+    notes: "embryo1: doesnt have membrane, doesnt implant. can delete. embryo 2: membrane only, on its side and doesnt implant. "
+  - id: "stack_5"
+    condition: "embryo1: looks super similar to stack0embryo1? has icm everywhere, but in this case kind of looks more like just the TE turns it on? starts to implant by t10. spreads super nicely. embryo2 implants forom both sides? mural on both sides kind of. keepts a lumen. embryo 3: doesnt implant. embryo4: mem only, doesnt implant."  # TODO: no label in folder name to guess from
+    folder: "stack_5_channel_0-far red_obj_bottom"
+    notes: ""
+  - id: "stack_6"
+    condition: ""  # TODO: no label in folder name to guess from
+    folder: "stack_6_channel_0-far red_obj_bottom"
+    notes: "embryo1: pile up on mural side. moves out of frame halfway through and doesnt implant. embryo 2: mem only. for both, neither implant but bottom one is quite protrusive at mural. embryo 3: is just the botttom one on embryo 2 and doesnt implant.        "
+  - id: "stack_7"
+    condition: ""  # TODO: no label in folder name to guess from
+    folder: "stack_7_channel_0-far red_obj_bottom"
+    notes: "embryo 1: mem only, starts kind of on side, becomes pile up at mural.moves out of frame and doesnt implant. embryo2: mem only, doesnt implant.  "
+  - id: "stack_8"
+    condition: ""  # TODO: no label in folder name to guess from
+    folder: "stack_8_channel_0-far red_obj_bottom"
+    notes: "embryo1: mem only, is just maybe starting to outgrow at the end. signal kind of weak. embryo 2 oct4 only. i dont think it starts outgrowth but has nice oct4 movement and such long protrusions is kind of cool.  "
+  - id: "stack_9-fgf "
+    condition: "fgf"
+    folder: "stack_9-fgf _channel_0-far red_obj_bottom"
+    notes: "theres an embryo already outgrowing to right. makes it hard to tell whos membrane is whos. embryo2: really pretty ourgrowth data, gets super spread out and icm lands perfectly in the center. embryo3: big pile up at mural but kind of on side. another one outgrowing next to it.and under. maybe even prevents it from outgrowing. double pos. embryo4: double pos, signal kind of wonky. has already started to outgrow. lumen is gone. continues to grow outward and kind of has a bias towards going under the icm cuz it was on its side? but also kind of looks like the mural butt is dragging it. wouldnt really say it changes the angle of icm orientation. the embryo next to it is also implanting and cant tell who is who.        "
+  - id: "stack_10"
+    condition: " "  # TODO: no label in folder name to guess from
+    folder: "stack_10_channel_0-far red_obj_bottom"
+    notes: "stack 1: is this the same as 9 embryo 4? much cleaner if so. double pos and implants. is kind of on its side but is slightly more centered as it implants. one next to it butts in though. this one could be quantified for icm angle change!!! embryo2: hughe pile up on mte. double pos and next to one implanting. cant really tell if its implanting or not. embryo3: double pos. is starting to implant at beginning doesnt really implant too muc. icm maybe lifts up angle a little/ not much of a lumen. embryo4: starts with icm towards bottom. another embryo is implanting next but this one floats up in z so probably wasnt attached very good.    "
+  - id: "stack_11"
+    condition: ""  # TODO: no label in folder name to guess from
+    folder: "stack_11_channel_0-far red_obj_bottom"
+    notes: "embryo 1: nice big blastocyst. is next to one implanting. double pos. ends up bloating up in z. kind of looks like a whole opens in the last frames but also maybe goes out of z range on bottom. embryo 2: might be same as 10 embryo 4? starts with icm towards bottom and is next to one implanting.bounces up and down in z, doesnt seem to attach. the one next to it is beautiful membrane implanting though.embryo3: clear shot of the scaping cell(s). membrane only. still has a lumen, implants in all directions and i think icm is at the top. is already implanting at the beginning. embryo4: mem only. a little guy. big pile up at mte.is next to the big implanting one, doesnt implant.         "
+  - id: "stack_12"
+    condition: ""  # TODO: no label in folder name to guess from
+    folder: "stack_12_channel_0-far red_obj_bottom"
+    notes: "embryo1: is 11 embryo 4. i kind of think theres a little gap or opening in the last few frames. embryo2: icm is at top but looks like some on the bottome too? double pos, doesnt implant. embryo3: same? embryo 4: mem only, midding bottom few z pos. but dont think it implants.    "
+  - id: "stack_14-fgf snap oct 4"
+    condition: "fgf_snap_oct_4"
+    folder: "stack_14-fgf snap oct 4_channel_0-far red_obj_bottom"
+    notes: "embryo1: big pile up at mte. double pos. doesnt implant. embryo 2: some icm cells reacing down to mte. doesnt implant.  "
+
+# ── Timecourse TIFF conversion ────────────────────────────────────────────────
+# Run: python pipelines/timecourse/convert_h5_timecourse_to_tiff.py --config "configs/other live images/260721_e45c_fgf_oct4_snap_2.yaml"
+live_timecourse:
+  root_dir: "/mnt/md0/elysse/260721_e45c_fgf_oct4_snap_2/2026-07-22_122157/raw"
+  output_dir: "/mnt/md0/elysse/260721_e45c_fgf_oct4_snap_2/tifs"
+  dataset_path: "Data"
+  dtype: "uint16"
+
+  per_timepoint: true          # write one ZYX TIFF per timepoint per stack subfolder
+  skip_stacks: []    # TODO: any stack_ids to exclude, e.g. ["stack_0"]
+
+  # Autocrop: computed from first + last timepoint (union), applied to all T.
+  auto_crop: true
+  auto_crop_channel: 0
+  auto_crop_threshold_percentile: 80
+  auto_crop_blur_sigma: 2
+  pad: 20

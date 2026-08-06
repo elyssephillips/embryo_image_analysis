@@ -10,7 +10,7 @@ import numpy as np
 import tifffile
 import yaml
 
-FOLDER_RE = re.compile(r"^(stack_[^_]+)_channel_(\d+)(?:-(.+))?$", re.IGNORECASE)
+FOLDER_RE = re.compile(r"^(stack_[^_]+)_channel_(\d+)(?:[_-](.+))?$", re.IGNORECASE)
 
 # Live-imaging folders: stack_N[-label]_channel_M[_suffix] where the label may
 # contain spaces/dashes but no underscores (e.g. "stack_1-control plus fgf_channel_0_obj_bottom").

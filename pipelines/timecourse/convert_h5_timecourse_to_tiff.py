@@ -22,10 +22,10 @@ from pathlib import Path
 # ── Dev override ──────────────────────────────────────────────────────────────
 # Set this to run the script directly (play button / F5) without CLI args.
 # Set to None to require CLI args instead.
-DEV_CONFIG = Path("configs/other live images/260721_e45c_fgf_oct4_snap.yaml")
+DEV_CONFIG = Path("configs/other live images/260721_e45c_fgf_oct4_snap_2.yaml")
 # ─────────────────────────────────────────────────────────────────────────────
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 

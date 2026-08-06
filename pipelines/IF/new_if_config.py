@@ -37,8 +37,8 @@ CONFIG_DIR = PROJECT_ROOT / "configs" / "IF"
 ACTIVE_CONFIG = CONFIG_DIR / "config.yaml"
 
 # ============================== EDIT THESE ==============================
-DATASET_NAME = "20260604_meki_cdx2_ppmlc_gata3"          # e.g. "20260604_fixed" — required
-BASE_DIR = "/mnt/md1/elysse/20260604_fixed"              # e.g. "/mnt/md1/elysse/20260604_fixed" — required
+DATASET_NAME = "20260730_meki_cdx2_ppmlc_gata3"          # e.g. "20260604_fixed" — required
+BASE_DIR = "/mnt/md1/elysse/20260730_c_meki_cdx2__gata3"              # e.g. "/mnt/md1/elysse/20260730_C_meki_cdx2_ppmlc_gata3" — required
 H5_ROOT = None             # h5_conversion.root_dir; defaults to BASE_DIR if left None
 NAME = None                # human-readable experiment name; defaults to carrying over the previous config's name
 # ==========================================================================
@@ -50,7 +50,7 @@ rotated_dir: "{rotated_dir}"
 segmentation_dir: "{segmentation_dir}"
 segmentation_dir_raw: "{segmentation_dir_raw}"
 output_dir: "{output_dir}"
-metadata_json: "/mnt/md1/elysse/20260604_fixed/2026-06-04_121950/raw/stack_0-ctrl 1 2 3_channel_0-DAPI_obj_bottom/Cam_short_00000.json"  # TODO: point at a Cam_*.json from this dataset's DAPI channel folder
+metadata_json: "/mnt/md1/elysse/260730_c_meki_gata3_nmmiia_cdx2/2026-07-30_172407/raw/stack_0-ctrl_channel_0_obj_bottom/Cam_short_00000.json"  # TODO: point at a Cam_*.json from this dataset's DAPI channel folder
 rotation_log: "{rotation_log}"
 
 file_extension: ".tif"
@@ -188,7 +188,7 @@ def main():
               f"then run pipelines/IF/convert_h5_to_tiff.py (it converts each well automatically).")
     elif mode == "timecourse":
         print(f"\nDetected layout: timecourse (live-imaging, not fixed IF). "
-              f"Use scripts/convert_h5_timecourse_to_tiff.py instead.")
+              f"Use pipelines/timecourse/convert_h5_timecourse_to_tiff.py instead.")
     else:
         print(f"\nWARNING: couldn't detect a usable HDF5 layout under {h5_root}. "
               f"Check H5_ROOT points at the right folder.")

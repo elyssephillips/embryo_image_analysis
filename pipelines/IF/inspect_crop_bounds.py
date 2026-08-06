@@ -47,7 +47,8 @@ from src.conversion import (
 CONFIG_PATH = PROJECT_ROOT / "configs" / "IF" / "config.yaml"
 
 # ============================== EDIT THESE (optional) ==============================
-STACKS = None   # e.g. ["stack_0-ctrl 1 2 3", "stack_7-meki"] to restrict, or None for all
+STACKS = None        # e.g. ["stack_0-ctrl 1 2 3", "stack_7-meki"] to restrict to only these, or None for all
+SKIP_STACKS = ["stack_12", "stack_13", "stack_14", "stack_16", "stack_19", "stack_2", "stack_20", "stack_21-erki maybe", "stack_23-erki maybe", "stack_26", "stack_27", "stack_28", "stack_3", "stack_30", "stack_31", "stack_34", "stack_35", "stack_38", "stack_39", "stack_44-ctrl", "stack_46-ctrl", "stack_5", "stack_50-ctrl"]     # e.g. ["stack_22", "stack_48-ctrl"] to exclude these (checked after STACKS)
 # =====================================================================================
 
 OVERRIDES_FILE = "crop_overrides.yaml"
@@ -294,6 +295,8 @@ def main():
             print(f"Stack(s) not found: {missing}")
             sys.exit(1)
         stack_ids = [s for s in stack_ids if s in STACKS]
+    if SKIP_STACKS:
+        stack_ids = [s for s in stack_ids if s not in SKIP_STACKS]
 
     # Determine expected channel set from the most common set across all stacks,
     # then flag any that deviate (same logic as convert_h5_channels_to_tiff.py).

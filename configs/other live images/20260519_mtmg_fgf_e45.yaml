@@ -80,7 +80,7 @@ stacks:
     folder: "stack_7-control plus fgf_channel_0_obj_bottom"
 
 # ── Timecourse TIFF conversion ────────────────────────────────────────────────
-# Run: python scripts/convert_h5_timecourse_to_tiff.py --config <this file>
+# Run: python pipelines/timecourse/convert_h5_timecourse_to_tiff.py --config <this file>
 live_timecourse:
   root_dir: "/mnt/md1/elysse/20260519_mtmg_fgf_e45/2026-05-20_170255/raw"
   output_dir: "/mnt/md1/elysse/20260519_mtmg_fgf_e45/tifs"

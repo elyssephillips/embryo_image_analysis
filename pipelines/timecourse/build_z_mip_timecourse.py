@@ -53,7 +53,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -67,8 +67,8 @@ from src.conversion import build_live_stack_groups
 # ============================== EDIT THESE ==============================
 # Either the acquisition's raw/ folder itself, or its parent (the folder
 # containing raw/) — both are accepted.
-ROOT_DIR = Path("/mnt/md1/elysse/260721_E4.5c_fgf_oct4_snap/2026-07-21_184317/raw")
-OUTPUT_DIR = Path("/mnt/md1/elysse/260721_E4.5c_fgf_oct4_snap/2026-07-21_184317/z_mip_timecourses")
+ROOT_DIR = Path("/mnt/md0/elysse/260721_e45c_fgf_oct4_snap_2/2026-07-22_122157/raw")
+OUTPUT_DIR = Path("/mnt/md0/elysse/260721_e45c_fgf_oct4_snap_2/2026-07-22_122157/z_mip_timecourses")
 
 STACKS_INCLUDE = None   # e.g. ["stack_0"] to only process some stacks (all their channels); None = all
 

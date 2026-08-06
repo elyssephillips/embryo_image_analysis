@@ -2,7 +2,7 @@
 
 Bootstraps the same kind of config as configs/other live images/20260519_mtmg_fgf_e45.yaml:
 a documentation-style project/microscopy/acquisition/stacks block on top of the
-live_timecourse block that scripts/convert_h5_timecourse_to_tiff.py actually reads.
+live_timecourse block that pipelines/timecourse/convert_h5_timecourse_to_tiff.py actually reads.
 
 Everything mechanically derivable comes straight from the acquisition's own
 Cam_*.json sidecars (voxel size, image size, instrument/serial/firmware,
@@ -17,7 +17,7 @@ as clearly marked TODOs.
 
 This is the first step for a new live-imaging dataset: fill in the settings
 below, run it, fill in the TODOs it leaves in the generated yaml, then run
-scripts/convert_h5_timecourse_to_tiff.py against that config (edit its
+pipelines/timecourse/convert_h5_timecourse_to_tiff.py against that config (edit its
 DEV_CONFIG or pass --config).
 
 To run: edit the settings below, then click VS Code's "Run Python File"
@@ -32,7 +32,7 @@ from pathlib import Path
 import h5py
 import yaml
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -44,8 +44,8 @@ TIMEPOINT_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})_(\d{6})$")
 LABEL_RE = re.compile(r"^stack_[^-]*-(.+)$")
 
 # ============================== EDIT THESE ==============================
-DATASET_NAME = "260721_e45c_fgf_oct4_snap"     # e.g. "260721_e45c_fgf_oct4_snap" — required
-BASE_DIR = "/mnt/md1/elysse/260721_E4.5c_fgf_oct4_snap"  # dataset root — required
+DATASET_NAME = "260721_e45c_fgf_oct4_snap_2"     # e.g. "260721_e45c_fgf_oct4_snap" — required
+BASE_DIR = "/mnt/md0/elysse/260721_e45c_fgf_oct4_snap_2"  # dataset root — required
 ACQUISITION_DIR = None    # override for the timestamped acquisition folder under BASE_DIR;
                           # leave None to auto-detect it (requires exactly one under BASE_DIR)
 NAME = None               # human-readable experiment name; defaults to DATASET_NAME
@@ -103,7 +103,7 @@ stacks:
 {stacks_block}
 
 # ── Timecourse TIFF conversion ────────────────────────────────────────────────
-# Run: python scripts/convert_h5_timecourse_to_tiff.py --config "{config_rel_path}"
+# Run: python pipelines/timecourse/convert_h5_timecourse_to_tiff.py --config "{config_rel_path}"
 live_timecourse:
   root_dir: "{root_dir}"
   output_dir: "{live_output_dir}"
@@ -341,7 +341,7 @@ def main():
     print(f"  {len(stack_ids)} stack(s), {len(channel_indices)} channel(s), {n_timepoints} timepoint(s).")
     print("Still need to fill in by hand: detection_objective.model/immersion/wd_mm, "
           "channel identities/laser info marked TODO, and any stack conditions left blank.")
-    print(f"\nNext: edit the TODOs above, then run scripts/convert_h5_timecourse_to_tiff.py "
+    print(f"\nNext: edit the TODOs above, then run pipelines/timecourse/convert_h5_timecourse_to_tiff.py "
           f"(point its DEV_CONFIG at {config_path.relative_to(PROJECT_ROOT)}, or pass --config).")
 
     log_run("preprocessing", DATASET_NAME, "new_live_config.py",

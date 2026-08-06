@@ -41,7 +41,7 @@ from src.conversion import get_config_value, load_hyperstack_czyx, load_yaml_con
 CONFIG_PATH = PROJECT_ROOT / "configs" / "IF" / "config.yaml"
 
 # ============================== EDIT THESE ==============================
-TIFF_PATH = "stack_0-ctrl 1 2 3_embryo2.tif"   # e.g. "stack_5-ctrl_embryo1.tif" (resolved against raw_data_dir)
+TIFF_PATH = "stack_017_embryo4.tif"   # e.g. "stack_5-ctrl_embryo1.tif" (resolved against raw_data_dir)
                     # or a full path to a TIFF anywhere else (e.g. in rotated_dir).
                     # Leave as None to list available TIFFs in raw_data_dir and exit.
 VOXEL_SIZE_ZYX_OVERRIDE = None  # e.g. [0.55, 0.122666664, 0.122666664] to test a
