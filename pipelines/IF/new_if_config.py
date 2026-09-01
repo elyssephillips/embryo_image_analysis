@@ -31,13 +31,14 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.conversion import detect_h5_layout
-from src.log import log_run
+from src.io import get_storage_note, get_config_notes, get_config_n_conditions, summarize_config_metadata
+from src.log import log_run, sync_notes
 
 CONFIG_DIR = PROJECT_ROOT / "configs" / "IF"
 ACTIVE_CONFIG = CONFIG_DIR / "config.yaml"
 
 # ============================== EDIT THESE ==============================
-DATASET_NAME = "20260730_meki_cdx2_ppmlc_gata3"          # e.g. "20260604_fixed" — required
+DATASET_NAME = "20260730_E5.52_ppmlc_gata3"          # e.g. "20260604_fixed" — required
 BASE_DIR = "/mnt/md1/elysse/20260730_c_meki_cdx2__gata3"              # e.g. "/mnt/md1/elysse/20260730_C_meki_cdx2_ppmlc_gata3" — required
 H5_ROOT = None             # h5_conversion.root_dir; defaults to BASE_DIR if left None
 NAME = None                # human-readable experiment name; defaults to carrying over the previous config's name
@@ -79,6 +80,10 @@ h5_conversion:
   crop: null  # manual crop: y0:y1:x0:x1 or z0:z1:y0:y1:x0:x1
   dtype: "{dtype}"
   confirm_autocrop: {confirm_autocrop}
+
+#storage: fill in -- where raw/segs/analysis actually live (e.g. "t7: raw and segs; weiner: raw")
+#n_conditions: fill in -- e.g. "3 C, 6 meki + 7 testing second panel"
+#notes: fill in -- freeform; each change gets logged as a new dated entry
 """
 
 DEFAULT_H5_CONVERSION = {
@@ -193,8 +198,12 @@ def main():
         print(f"\nWARNING: couldn't detect a usable HDF5 layout under {h5_root}. "
               f"Check H5_ROOT points at the right folder.")
 
+    new_config = yaml.safe_load(rendered) or {}
     log_run("IF", DATASET_NAME, "new_if_config.py",
-            output_path=str(ACTIVE_CONFIG), data_path=h5_root, detail="detailed")
+            output_path=str(ACTIVE_CONFIG), data_path=h5_root, detail="detailed",
+            storage=get_storage_note(ACTIVE_CONFIG), n_conditions=get_config_n_conditions(ACTIVE_CONFIG),
+            **summarize_config_metadata(new_config))
+    sync_notes("IF", DATASET_NAME, get_config_notes(ACTIVE_CONFIG))
 
 
 if __name__ == "__main__":

@@ -10,7 +10,8 @@ from pathlib import Path
 from csbdeep.utils import normalize
 from stardist.models import StarDist3D
 from src.conversion import load_hyperstack_czyx
-from src.io import load_config, get_image_paths
+from src.io import load_config, get_image_paths, get_storage_note, get_config_notes, get_config_n_conditions, summarize_config_metadata
+from src.log import sync_dataset_fields, sync_notes
 
 MODEL_BASEDIR = "/mnt/md1/elysse/code/blastospim model files"
 MODEL_NAME = "late_blastocyst_model"
@@ -38,6 +39,12 @@ NMS_THRESH = 0.22   # None = model default (0.3). Lower = more aggressive mergin
 
 def run_segmentation():
     config = load_config('configs/IF/config.yaml')
+    _dataset_id = config.get("datasets", "")
+    sync_dataset_fields("IF", _dataset_id, storage=get_storage_note('configs/IF/config.yaml'),
+                         data_path=config.get("raw_data_dir", ""),
+                         n_conditions=get_config_n_conditions('configs/IF/config.yaml'),
+                         **summarize_config_metadata(config))
+    sync_notes("IF", _dataset_id, get_config_notes('configs/IF/config.yaml'))
     raw_dir = Path(config['raw_data_dir'])
     channel_names = config['microscopy']['channel_names']
 

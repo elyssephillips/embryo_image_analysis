@@ -10,7 +10,8 @@ import napari
 from magicgui import magicgui
 from skimage.measure import regionprops_table
 from src.conversion import load_hyperstack_czyx
-from src.io import load_config
+from src.io import load_config, get_storage_note, get_config_notes, get_config_n_conditions, summarize_config_metadata
+from src.log import sync_dataset_fields, sync_notes
 
 
 # --- GLOBAL STATE ---
@@ -81,6 +82,11 @@ def run_segmentation_editor():
     global viewer, current_index, raw_files, label_files, output_folder
 
     config = load_config()
+    _dataset_id = config.get("datasets", "")
+    sync_dataset_fields("IF", _dataset_id, storage=get_storage_note(),
+                         data_path=config.get("raw_data_dir", ""),
+                         n_conditions=get_config_n_conditions(), **summarize_config_metadata(config))
+    sync_notes("IF", _dataset_id, get_config_notes())
     raw_folder = Path(config['raw_data_dir'])
     label_folder = Path(config['segmentation_dir_raw'])
     output_folder = Path(config['segmentation_dir'])

@@ -2,12 +2,13 @@
 name: "FGF TE Patterning IF"
 
 
-raw_data_dir: "/Users/elyssephillips/Desktop/20260129_fgf_cdx2_ppmlc_gata3/tifs"
-rotated_dir: "/Users/elyssephillips/Desktop/20260129_fgf_cdx2_ppmlc_gata3/tifs/rotated"
-segmentation_dir: "/Users/elyssephillips/Desktop/20260129_fgf_cdx2_ppmlc_gata3/seg/cleaned"
-output_dir: "/Users/elyssephillips/Desktop/20260129_fgf_cdx2_ppmlc_gata3/analysis"
-metadata_json: "/Users/elyssephillips/Desktop/20260129_fgf_cdx2_ppmlc_gata3/Cam_long_00000 (3).json"
-rotation_log: "/Users/elyssephillips/Desktop/20260129_fgf_cdx2_ppmlc_gata3/analysis/rotation_log.csv"
+raw_data_dir: "/mnt/md1/elysse/fgf exp/20260129_fgf_cdx2_ppmlc_gata3/tifs"
+rotated_dir: "/mnt/md1/elysse/fgf exp/20260129_fgf_cdx2_ppmlc_gata3/tifs/rotated"
+segmentation_dir_raw: "/mnt/md1/elysse/fgf exp/20260129_fgf_cdx2_ppmlc_gata3/tifs/seg"
+segmentation_dir: "/mnt/md1/elysse/fgf exp/20260129_fgf_cdx2_ppmlc_gata3/seg/cleaned"
+output_dir: "/mnt/md1/elysse/fgf exp/20260129_fgf_cdx2_ppmlc_gata3/analysis"
+metadata_json: "/mnt/md1/elysse/fgf exp/20260129_fgf_cdx2_ppmlc_gata3/Cam_long_00000 (3).json"
+rotation_log: "/mnt/md1/elysse/fgf exp/20260129_fgf_cdx2_ppmlc_gata3/tifs/rotated/rotation_log.csv"
 
 
 file_extension: ".tif"
@@ -27,6 +28,12 @@ single_file_mode: false
 
 # target_file: "" #only use if single_file_mode is true
 
+
+#storage: t7: raw and cleaned segs and analys; md1: ""; weiner: ""
+
+#n_conditions: 4 control, 5 fgf
+
+#notes: fill in
 
 #Quality check
 exclusions: {}

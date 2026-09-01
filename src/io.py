@@ -16,6 +16,62 @@ def load_config(config_path='configs/IF/config.yaml'):
         return yaml.safe_load(f)
 
 
+def summarize_config_metadata(config: dict) -> dict:
+    """Extract log-friendly summaries of channels/voxel size/exclusions from a parsed IF config.
+
+    Returns a dict with 'channels', 'voxel_size', 'exclusions' string values, each ''
+    if that info isn't present in the config (so callers can pass them straight into
+    src.log.sync_dataset_fields / log_run without touching fields that aren't known).
+    """
+    microscopy = config.get('microscopy') or {}
+    channel_names = microscopy.get('channel_names') or []
+    voxel_size_zyx = microscopy.get('voxel_size_zyx') or []
+
+    channels = ", ".join(str(c) for c in channel_names)
+    voxel_size = f"[{', '.join(str(v) for v in voxel_size_zyx)}]" if voxel_size_zyx else ""
+
+    exclusions = ""
+    if 'exclusions' in config:
+        excl = config.get('exclusions') or {}
+        exclusions = "; ".join(f"{k}: {v}" for k, v in excl.items()) if excl else "none"
+
+    return {"channels": channels, "voxel_size": voxel_size, "exclusions": exclusions}
+
+
+def _get_config_comment(config_path, field: str) -> str:
+    """Extract a '#{field}: ...' comment from a config file, if present.
+
+    YAML parsing strips comments, so this reads the raw file text directly.
+    Returns '' if the file has no such comment (or doesn't exist).
+    """
+    path = Path(config_path)
+    if not path.is_absolute():
+        path = Path(__file__).parent.parent / path
+    if not path.exists():
+        return ""
+    prefix = f"#{field}:".lower()
+    for line in path.read_text().splitlines():
+        stripped = line.strip()
+        if stripped.lower().startswith(prefix):
+            return stripped.split(":", 1)[1].strip()
+    return ""
+
+
+def get_storage_note(config_path='configs/IF/config.yaml') -> str:
+    """Extract the '#storage: ...' comment from a config file, if present."""
+    return _get_config_comment(config_path, "storage")
+
+
+def get_config_notes(config_path='configs/IF/config.yaml') -> str:
+    """Extract the '#notes: ...' comment from a config file, if present."""
+    return _get_config_comment(config_path, "notes")
+
+
+def get_config_n_conditions(config_path='configs/IF/config.yaml') -> str:
+    """Extract the '#n_conditions: ...' comment from a config file, if present."""
+    return _get_config_comment(config_path, "n_conditions")
+
+
 def get_image_paths(directory, extension=".tif"):
     """Finds all files with a specific extension in a given directory."""
     path = Path(directory)

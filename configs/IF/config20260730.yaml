@@ -1,0 +1,46 @@
+name: "MEKi TE Patterning IF"
+
+raw_data_dir: "/mnt/md1/elysse/20260730_c_meki_gata3_nmmiia_cdx2/cropped"
+rotated_dir: "/mnt/md1/elysse/20260730_c_meki_gata3_nmmiia_cdx2/cropped/rotated"
+segmentation_dir: "/mnt/md1/elysse/20260730_c_meki_gata3_nmmiia_cdx2/nucleimask/cleaned"
+segmentation_dir_raw: "/mnt/md1/elysse/20260730_c_meki_gata3_nmmiia_cdx2/nucleimask"
+output_dir: "/mnt/md1/elysse/20260730_c_meki_gata3_nmmiia_cdx2/analysis"
+metadata_json: "/mnt/md1/elysse/260730_c_meki_gata3_nmmiia_cdx2/2026-07-30_172407/raw/stack_0-ctrl_channel_0_obj_bottom/Cam_short_00000.json"  # TODO: point at a Cam_*.json from this dataset's DAPI channel folder
+rotation_log: "/mnt/md1/elysse/20260730_c_meki_gata3_nmmiia_cdx2/analysis/rotation_log.csv"
+
+file_extension: ".tif"
+
+datasets: "20260730_c_meki_gata3_nmmiia_cdx2"
+
+microscopy:
+  voxel_size_zyx: [0.55, 0.122666664, 0.122666664]  # TODO: verify against this dataset's Cam_*.json processingInformation.voxel_size_um
+  channels:
+    dapi: 0
+    gfp: 1
+    rfp: 2
+    cy5: 3
+  channel_names: ["dapi", "gata3", "nmmiia", "cdx2"]  # TODO: verify these are the actual stains for THIS dataset, not carried over from the template
+
+single_file_mode: false
+
+# Optional HDF5 conversion settings. Add these to the same config file for a pipeline-style setup.
+h5_conversion:
+  root_dir: "/mnt/md1/elysse/20260730_c_meki_gata3_nmmiia_cdx2"
+  dataset_path: null  # optional HDF5 dataset path, e.g. "/images/data"
+
+  auto_crop: true
+  auto_crop_channel: 0           # channel index for crop bounds (null = all channels; 0 = DAPI)
+  auto_crop_threshold: null      # absolute intensity cutoff (null = use threshold_percentile instead)
+  auto_crop_threshold_percentile: 90  # percentile of the DAPI MIP to use as threshold
+  auto_crop_blur_sigma: 10       # gaussian blur applied to MIP before thresholding
+  pad: 150
+  crop: null  # manual crop: y0:y1:x0:x1 or z0:z1:y0:y1:x0:x1
+  dtype: "float32"
+  confirm_autocrop: false
+
+
+#storage: raw on weiner, cant use for analysis, conditions unclear.
+
+#n_conditions: combined
+
+#notes: fill in

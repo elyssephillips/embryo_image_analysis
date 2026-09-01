@@ -41,8 +41,8 @@ import tifffile
 from src.conversion import get_config_value, load_yaml_config
 
 # ============================== EDIT THESE ==============================
-CONFIG_PATH = PROJECT_ROOT / "configs" / "other live images" / "260721_e45c_fgf_oct4_snap_2.yaml"
-STACK_FOLDER = "stack_14-fgf_snap_oct_4_embryo2"   # subfolder name under live_timecourse.output_dir
+CONFIG_PATH = PROJECT_ROOT / "configs" / "other live images" / "260804_c_meki_h2b_snap_2.yaml"  # path to the dataset's config.yaml (or a full path to any other config.yaml)
+STACK_FOLDER = "stack_7-meki_4"     # folder name under live_timecourse.output_dir
                     # (or a full path to a t*.tif folder anywhere else).
                     # Leave as None to list available folders and exit.
 TIMEPOINT_CACHE_SIZE = 6   # number of full timepoint volumes kept in RAM at once

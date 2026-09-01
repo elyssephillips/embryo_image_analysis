@@ -36,6 +36,8 @@ from src.conversion import (
     write_tiff_czyx_from_array,
     _shift_bounds_clamped,
 )
+from src.io import get_storage_note, get_config_notes, get_config_n_conditions, summarize_config_metadata
+from src.log import sync_dataset_fields, sync_notes
 
 CONFIG_PATH = PROJECT_ROOT / "configs" / "IF" / "config.yaml"
 
@@ -62,6 +64,13 @@ OUTPUT_DIR = None  # None = sibling folder "<raw_data_dir.name>_drift_corrected"
 
 def main():
     config = load_yaml_config(CONFIG_PATH)
+    _dataset_id = get_config_value(config, ["datasets"]) or ""
+    sync_dataset_fields("IF", _dataset_id,
+                         storage=get_storage_note(CONFIG_PATH),
+                         data_path=get_config_value(config, ["raw_data_dir"]) or "",
+                         n_conditions=get_config_n_conditions(CONFIG_PATH),
+                         **summarize_config_metadata(config))
+    sync_notes("IF", _dataset_id, get_config_notes(CONFIG_PATH))
     raw_data_dir = Path(get_config_value(config, ["raw_data_dir"]))
     channel_names = get_config_value(config, ["microscopy", "channel_names"]) or []
     if REFERENCE_CHANNEL not in channel_names:

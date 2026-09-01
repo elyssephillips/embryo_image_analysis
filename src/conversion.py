@@ -770,24 +770,27 @@ def write_tiff_czyx_streaming(
 def load_hyperstack_czyx(path: Path) -> Tuple[np.ndarray, dict]:
     """Read a TIFF written by write_tiff_czyx_streaming back out as (Z, C, Y, X).
 
-    tifffile's own series reader doesn't recognize the ImageJ hyperstack
-    metadata written above (it sees a flat, unlabeled page stack — see
-    is_imagej()/series checks), so anything that does `tifffile.imread(path)`
-    and assumes a 4D (Z, C, Y, X) result silently gets back a 3D (pages, Y, X)
-    array instead. This reads the `channels`/`slices` counts straight out of
-    the embedded ImageJ description tag and reshapes accordingly.
+    Older tifffile versions' series reader didn't recognize the ImageJ
+    hyperstack metadata written above (it saw a flat, unlabeled page stack),
+    so `tifffile.imread(path)`/`tifffile.memmap(path)` silently returned a 3D
+    (pages, Y, X) array that needed manually reshaping via the `channels`/
+    `slices` counts from the embedded ImageJ description tag. Newer tifffile
+    (confirmed as of 2026.3.3) recognizes the series itself and hands back an
+    already-correct 4D (Z, C, Y, X) array directly — reshaping that using the
+    old pages-based math corrupts it (arr.shape[0] is now Z, not the page
+    count), so both cases are handled here based on what memmap returns.
 
     Uses tifffile.memmap rather than a full read, so multi-GB files aren't
     loaded into RAM just to be looked at.
 
     Returns (array, imagej_metadata). Raises ValueError if the file wasn't
     written by write_tiff_czyx_streaming (no ImageJ channel metadata, or the
-    page count doesn't factor into channels * slices).
+    shape tifffile returns doesn't factor into channels * slices).
     """
     with tifffile.TiffFile(str(path)) as tif:
         meta = tif.imagej_metadata
 
-    arr = tifffile.memmap(str(path))  # (pages, Y, X), C-contiguous
+    arr = tifffile.memmap(str(path))  # (pages, Y, X) or, on newer tifffile, already (Z, C, Y, X)
 
     if not meta or "channels" not in meta:
         raise ValueError(
@@ -796,13 +799,22 @@ def load_hyperstack_czyx(path: Path) -> Tuple[np.ndarray, dict]:
         )
 
     n_channels = int(meta["channels"])
+
+    if arr.ndim == 4:
+        # tifffile already parsed the ImageJ hyperstack series -- nothing to reshape.
+        if arr.shape[1] != n_channels:
+            raise ValueError(
+                f"tifffile returned {arr.ndim}D shape {arr.shape} whose channel axis "
+                f"doesn't match metadata channels ({n_channels}) in {path}."
+            )
+        return arr, meta
+
+    # Flat (pages, Y, X): pages are z-major, channel-fastest (page index = z * n_channels + c).
     n_slices = int(meta.get("slices", arr.shape[0] // n_channels))
     if n_channels * n_slices != arr.shape[0]:
         raise ValueError(
             f"channels ({n_channels}) * slices ({n_slices}) != page count ({arr.shape[0]}) in {path}."
         )
-
-    # Pages are z-major, channel-fastest (page index = z * n_channels + c).
     arr = arr.reshape(n_slices, n_channels, *arr.shape[1:])
     return arr, meta
 

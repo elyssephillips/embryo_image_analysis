@@ -22,7 +22,7 @@ from pathlib import Path
 # ── Dev override ──────────────────────────────────────────────────────────────
 # Set this to run the script directly (play button / F5) without CLI args.
 # Set to None to require CLI args instead.
-DEV_CONFIG = Path("configs/other live images/260721_e45c_fgf_oct4_snap_2.yaml")
+DEV_CONFIG = Path("configs/other live images/260804_c_meki_h2b_snap_2.yaml")
 # ─────────────────────────────────────────────────────────────────────────────
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -178,27 +178,19 @@ def main():
     expected_channels = Counter(all_ch_sets.values()).most_common(1)[0][0]
     print(f"Found {len(stack_ids)} stack(s). Expected channels: {sorted(expected_channels)}")
 
-    bad_stacks = []
     for sid in stack_ids:
         missing = sorted(expected_channels - all_ch_sets[sid])
         extra = sorted(all_ch_sets[sid] - expected_channels)
         if missing or extra:
-            bad_stacks.append(sid)
-            msg = f"  WARNING: {sid}"
+            msg = f"  NOTE: {sid} has channels {sorted(all_ch_sets[sid])}"
             if missing:
-                msg += f" — missing channels {missing}"
+                msg += f" (missing {missing} vs. the most common set)"
             if extra:
-                msg += f" — extra channels {extra}"
+                msg += f" (extra {extra} vs. the most common set)"
             print(msg)
-    if bad_stacks:
-        print(f"{len(bad_stacks)} stack(s) with channel mismatches will be skipped.")
 
     n_stacks = len(stack_ids)
     for stack_num, stack_id in enumerate(stack_ids, 1):
-        if stack_id in bad_stacks:
-            print(f"\n[{stack_num}/{n_stacks}] {stack_id} — SKIPPED (channel mismatch)", flush=True)
-            continue
-
         print(f"\n[{stack_num}/{n_stacks}] {stack_id}", flush=True)
 
         # Build channel_timepoint_files[c][t]

@@ -61,7 +61,7 @@ from src.conversion import (
 )
 
 # ============================== EDIT THESE ==============================
-CONFIG_PATH = PROJECT_ROOT / "configs" / "other live images" / "260721_e45c_fgf_oct4_snap_2.yaml"
+CONFIG_PATH = PROJECT_ROOT / "configs" / "other live images" / "260804_c_meki_h2b_snap_2.yaml"  # edit if needed
 STACKS = None   # e.g. ["stack_0", "stack_9-fgf "] to restrict, or None for all
                 # (stacks with an existing override are skipped unless named here)
 MIP_CACHE_SIZE = 24    # number of decoded (channel, timepoint) MIPs kept in RAM at once
@@ -385,32 +385,24 @@ def main():
         stack_ids = [s for s in stack_ids if s not in overrides]
 
     all_ch_sets = {sid: frozenset(ci for ci, _ in groups[sid]) for sid in stack_ids}
-    expected_channels = Counter(all_ch_sets.values()).most_common(1)[0][0]
-    bad_stacks = set()
+    expected_channels = Counter(all_ch_sets.values()).most_common(1)[0][0] if all_ch_sets else frozenset()
     for sid in stack_ids:
         ch_set = all_ch_sets[sid]
         missing_ch = sorted(expected_channels - ch_set)
         extra_ch = sorted(ch_set - expected_channels)
         if missing_ch or extra_ch:
-            bad_stacks.add(sid)
-            msg = f"  WARNING: {sid}"
+            msg = f"  NOTE: {sid} has channels {sorted(ch_set)}"
             if missing_ch:
-                msg += f" — missing channels {missing_ch}"
+                msg += f" (missing {missing_ch} vs. the most common set)"
             if extra_ch:
-                msg += f" — unexpected extra channels {extra_ch}"
+                msg += f" (extra {extra_ch} vs. the most common set)"
             print(msg)
-    if bad_stacks:
-        print(f"\n{len(bad_stacks)} stack(s) have channel mismatches and will be skipped.\n")
 
-    print(f"Found {len(stack_ids)} stack(s) ({len(bad_stacks)} skipped). Overrides already saved: {sorted(overrides)}\n")
+    print(f"\nFound {len(stack_ids)} stack(s). Overrides already saved: {sorted(overrides)}\n")
     print("Controls: ←/→ step | Shift+←/→ jump | Home/End | drag = crop | "
           "A = add box | Enter = save | S = skip | Q = quit\n")
 
     for i, stack_id in enumerate(stack_ids, 1):
-        if stack_id in bad_stacks:
-            print(f"[{i}/{len(stack_ids)}] {stack_id} — SKIPPED (channel mismatch)")
-            continue
-
         items_sorted = sorted(groups[stack_id], key=lambda x: x[0])
         channel_indices = [ci for ci, _ in items_sorted]
         channel_timepoint_files = [find_h5_files_sorted(folder) for _, folder in items_sorted]

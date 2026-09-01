@@ -29,6 +29,10 @@ single_file_mode: false
 # target_file: "" #only use if single_file_mode is true
 
 
+#Notes: on weiner server, no dapi
+
+#n_conditions: fill in
+
 #Quality check
 exclusions: {}
 

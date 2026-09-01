@@ -45,7 +45,8 @@ if str(PROJECT_ROOT) not in sys.path:
 import yaml
 
 from src.conversion import detect_h5_layout, get_config_value, get_h5_conversion_config, load_yaml_config
-from src.log import log_conversion, log_run
+from src.io import get_storage_note, get_config_notes, get_config_n_conditions, summarize_config_metadata
+from src.log import log_conversion, log_run, sync_notes
 
 CONFIG_PATH = PROJECT_ROOT / "configs" / "IF" / "config.yaml"
 CROP_OVERRIDES_PATH = CONFIG_PATH.parent / "crop_overrides.yaml"
@@ -168,7 +169,10 @@ def main():
     dataset_id = config.get("datasets") or output_dir.parts[-2]
     log_conversion(dataset_id, raw_path=str(h5_root), output_path=str(output_dir), n_stacks=n_stacks)
     log_run("IF", dataset_id, "convert_h5_to_tiff.py",
-            output_path=str(output_dir), data_path=str(h5_root), detail="light")
+            output_path=str(output_dir), data_path=str(h5_root), detail="light",
+            storage=get_storage_note(CONFIG_PATH), n_conditions=get_config_n_conditions(CONFIG_PATH),
+            **summarize_config_metadata(config))
+    sync_notes("IF", dataset_id, get_config_notes(CONFIG_PATH))
 
 
 if __name__ == "__main__":

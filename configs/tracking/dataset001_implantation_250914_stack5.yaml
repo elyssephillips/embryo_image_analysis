@@ -1,0 +1,76 @@
+project:
+  name: "Dataset001 Implantation — Nuclei Tracking"
+  dataset_id: "250914_stack5"
+
+paths:
+  # ── Input data ───────────────────────────────────────────────────────────────
+  # Nuclear channel (H2B / Cam_long), already cropped to match nnUNet inference input —
+  # used for segmentation (intensity features) and, later, tracking/intensity features.
+  raw_dir: "/mnt/md0/elysse/nnUNet/inference/Dataset001_implantation/250914_stack5/imagesTs/tifs/"
+  raw_glob: "Dataset001_*_0000.tif"
+
+  # ERK biosensor channel (Cam_short), cropped identically to raw_dir by prepare_inference.py.
+  erk_dir: "/mnt/md0/elysse/nnUNet/inference/Dataset001_implantation/250914_stack5/cam_short_cropped/"
+  erk_glob: "Cam_short_*_cropped.tif"
+
+  # Instance-segmented label tiffs (one 3D tiff per timepoint, post-reclassification)
+  label_dir: "/mnt/md0/elysse/nnUNet/inference/Dataset001_implantation/250914_stack5/labels/"
+  label_glob: "*_instances_reclassified.tif"
+
+  # nnUNet binary prediction tiffs (input to 00_preprocess_segmentation.py)
+  nnunet_dir: "/mnt/md0/elysse/nnUNet/inference/Dataset001_implantation/250914_stack5/predictions/tifa/"
+  nnunet_glob: "*.tif"
+
+  # ── Intermediate data ────────────────────────────────────────────────────────
+  features_csv: "/mnt/md0/elysse/nnUNet/inference/Dataset001_implantation/250914_stack5/results/features/features.csv"
+  features_registered_csv: "/mnt/md0/elysse/nnUNet/inference/Dataset001_implantation/250914_stack5/results/features/features_registered.csv"
+  transforms_npz: "/mnt/md0/elysse/nnUNet/inference/Dataset001_implantation/250914_stack5/results/features/transforms.npz"
+
+  # ── Tracking config ──────────────────────────────────────────────────────────
+  btrack_config_json: "/mnt/md0/elysse/code/embryo_image_analysis/configs/tracking/cell_config.json"
+
+  # ── Tracking outputs ─────────────────────────────────────────────────────────
+  btrack_output_dir: "/mnt/md0/elysse/nnUNet/inference/Dataset001_implantation/250914_stack5/results/tracks/btrack/"
+  linked_tracks_dir: "/mnt/md0/elysse/nnUNet/inference/Dataset001_implantation/250914_stack5/results/tracks/linked/"
+
+  # track-relabeled 4D TIFF for curation (voxel value = track_id + 1)
+  track_labels_tiff: "/mnt/md0/elysse/nnUNet/inference/Dataset001_implantation/250914_stack5/results/tracks/linked/track_labels_linked.tif"
+
+  # ── Analysis outputs ─────────────────────────────────────────────────────────
+  output_dir: "/mnt/md0/elysse/nnUNet/inference/Dataset001_implantation/250914_stack5/results/analysis/"
+
+microscopy:
+  n_timepoints: 121
+  voxel_size_zyx: [2.0, 0.208, 0.208]   # µm per step/pixel — from prepare_inference.py spacing sidecar
+  # NOTE: each timepoint's z-crop differs (per-timepoint signal-based cropping in
+  # prepare_inference.py) — see crop_info.json for per-t original-stack z offsets.
+
+tracking:
+  # Not yet run for this dataset — fill in once 00_preprocess_segmentation.py output
+  # has been spot-checked and 02/03 have produced a first pass.
+  input_version: null
+  output_version: "linked_c1"
+
+  t_start: 0
+  t_end: 120
+
+  frame_interval_min: 15
+  min_track_length: 5
+
+motion:
+  msd:
+    max_lag_fraction: 0.5
+    min_lags_for_fit: 4
+  flow_field:
+    k_neighbors: 6
+
+erk:
+  ring_radius_um: 1.0        # Voronoi-constrained cytoplasmic ring width in µm
+  bg_multiplier: 3.0         # ring voxels with ERK < bg_level * bg_multiplier are excluded
+                             # bg_level estimated from top 3 z-planes of cam_short at t=0
+
+biology:
+  # ICM centroid not yet determined for this dataset — 00_preprocess_segmentation.py
+  # computes it per-timepoint dynamically, so this is only needed for later analysis
+  # steps that expect a single reference point (fill in after a first pass).
+  icm_centroid_t30_zyx: null

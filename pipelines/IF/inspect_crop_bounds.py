@@ -43,6 +43,8 @@ from src.conversion import (
     _get_h5_dataset,
     _read_zslice,
 )
+from src.io import get_storage_note, get_config_notes, get_config_n_conditions, summarize_config_metadata
+from src.log import sync_dataset_fields, sync_notes
 
 CONFIG_PATH = PROJECT_ROOT / "configs" / "IF" / "config.yaml"
 
@@ -254,6 +256,13 @@ def inspect_stack(
 def main():
     config_path = CONFIG_PATH
     config = load_yaml_config(config_path) if config_path.exists() else {}
+    _dataset_id = get_config_value(config, ["datasets"]) or ""
+    sync_dataset_fields("IF", _dataset_id,
+                         storage=get_storage_note(config_path),
+                         data_path=get_config_value(config, ["raw_data_dir"]) or "",
+                         n_conditions=get_config_n_conditions(config_path),
+                         **summarize_config_metadata(config))
+    sync_notes("IF", _dataset_id, get_config_notes(config_path))
     h5_config = get_h5_conversion_config(config)
 
     root_dir = Path(get_config_value(h5_config, ["root_dir"]))

@@ -42,6 +42,20 @@ def measure_nuclear_intensities(img_stack, labels, channels_dict):
     return results
 
 
+def remove_intensity_outliers(df, column):
+    """Removes rows that are extreme statistical outliers on `column`, via 1.5x IQR."""
+    Q1 = df[column].quantile(0.25)
+    Q3 = df[column].quantile(0.75)
+    IQR = Q3 - Q1
+    lower_bound = Q1 - 1.5 * IQR
+    upper_bound = Q3 + 1.5 * IQR
+    filtered_df = df[(df[column] >= lower_bound) & (df[column] <= upper_bound)].copy()
+    removed_count = len(df) - len(filtered_df)
+    if removed_count > 0:
+        print(f"   Scrubbed {removed_count} outliers from {column}")
+    return filtered_df
+
+
 def normalize_by_dapi(df, dapi_col='dapi_mean'):
     """Creates _dapi_norm columns for all _mean columns (except dapi)."""
     mean_cols = [c for c in df.columns if '_mean' in c and c != dapi_col]

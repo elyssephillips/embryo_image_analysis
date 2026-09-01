@@ -44,9 +44,9 @@ TIMEPOINT_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})_(\d{6})$")
 LABEL_RE = re.compile(r"^stack_[^-]*-(.+)$")
 
 # ============================== EDIT THESE ==============================
-DATASET_NAME = "260721_e45c_fgf_oct4_snap_2"     # e.g. "260721_e45c_fgf_oct4_snap" — required
-BASE_DIR = "/mnt/md0/elysse/260721_e45c_fgf_oct4_snap_2"  # dataset root — required
-ACQUISITION_DIR = None    # override for the timestamped acquisition folder under BASE_DIR;
+DATASET_NAME = "260804_c_meki_h2b_snap_2"  # required
+BASE_DIR = "/mnt/md1/elysse/260804_c_meki_h2b_snap/run 2"
+ACQUISITION_DIR = None
                           # leave None to auto-detect it (requires exactly one under BASE_DIR)
 NAME = None               # human-readable experiment name; defaults to DATASET_NAME
 NOTES = ""                # treatment details, litter info, etc.

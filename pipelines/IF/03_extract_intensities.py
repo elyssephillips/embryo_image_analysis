@@ -7,13 +7,19 @@ import tifffile as tiff
 import numpy as np
 import pandas as pd
 from scipy.ndimage import rotate
-from src.io import load_config, get_image_paths, get_masks, get_voxel_size_from_json, load_rotation_log
+from src.io import load_config, get_image_paths, get_masks, get_voxel_size_from_json, load_rotation_log, get_storage_note, get_config_notes, get_config_n_conditions, summarize_config_metadata
+from src.log import sync_dataset_fields, sync_notes
 from src.image import erode_labels_optimized
 from src.analysis import measure_nuclear_intensities
 
 
 def run_extraction():
     config = load_config()
+    _dataset_id = config.get("datasets", "")
+    sync_dataset_fields("IF", _dataset_id, storage=get_storage_note(),
+                         data_path=config.get("raw_data_dir", ""),
+                         n_conditions=get_config_n_conditions(), **summarize_config_metadata(config))
+    sync_notes("IF", _dataset_id, get_config_notes())
     voxel_size = get_voxel_size_from_json(config['metadata_json'])
 
     # Setup paths
@@ -26,7 +32,20 @@ def run_extraction():
     erode_z_px = int(round(3.2 / voxel_size[0]))
     erode_xy_px = int(round(1.0 / voxel_size[1]))
 
+    if not rotated_dir.is_dir():
+        raise FileNotFoundError(
+            f"rotated_dir does not exist: {rotated_dir}. Run 01_rotate.py for this dataset first."
+        )
+    if not seg_dir.is_dir():
+        raise FileNotFoundError(
+            f"segmentation_dir does not exist: {seg_dir}."
+        )
+
     image_files = get_image_paths(rotated_dir, extension="_rotated.tif")
+    if not image_files:
+        raise FileNotFoundError(
+            f"No *_rotated.tif files found in {rotated_dir}. Run 01_rotate.py for this dataset first."
+        )
     all_masks = get_masks(seg_dir)
     mask_map = {m.stem.replace('_segmentation', ''): m for m in all_masks}
     angle_map = load_rotation_log(config['rotation_log'])
@@ -64,9 +83,16 @@ def run_extraction():
         # Save eroded mask for visual verification
         tiff.imwrite(output_dir / f"{img_id}_eroded_seg.tif", labels_eroded.astype(np.uint16))
 
+    if not all_results:
+        raise RuntimeError(
+            f"Every one of {len(image_files)} rotated image(s) was skipped (missing mask, "
+            "missing rotation angle, or shape mismatch -- see messages above). Not overwriting "
+            "nuclear_intensities_raw.csv with an empty result."
+        )
+
     df = pd.DataFrame(all_results)
     df.to_csv(output_dir / "nuclear_intensities_raw.csv", index=False)
-    print(f"Raw data saved.")
+    print(f"Raw data saved: {len(df)} nuclei from {df['image_id'].nunique()} embryo(s).")
 
 
 if __name__ == "__main__":

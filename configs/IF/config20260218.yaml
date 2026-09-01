@@ -2,13 +2,13 @@
 name: "FGF TE Patterning IF"
 
 
-raw_data_dir: "/Users/elyssephillips/Desktop/FGF IF data/20260218_fgf_cdx2_ppmlc_gata3/tiffs"
-rotated_dir: "/Users/elyssephillips/Desktop/FGF IF data/20260218_fgf_cdx2_ppmlc_gata3/tiffs/rotated"
-segmentation_dir: "/Users/elyssephillips/Desktop/FGF IF data/20260218_fgf_cdx2_ppmlc_gata3/nucleimask/cleaned"
-segmentation_dir_raw: "/Users/elyssephillips/Desktop/FGF IF data/20260218_fgf_cdx2_ppmlc_gata3/nucleimask"
-output_dir: "/Users/elyssephillips/Desktop/FGF IF data/20260218_fgf_cdx2_ppmlc_gata3/analysis"
-metadata_json: "/Users/elyssephillips/Desktop/FGF IF data/20260218_fgf_cdx2_ppmlc_gata3/GFP.json"
-rotation_log: "/Users/elyssephillips/Desktop/FGF IF data/20260218_fgf_cdx2_ppmlc_gata3/analysis/rotation_log.csv"
+raw_data_dir: "/mnt/md1/elysse/fgf exp/20260218_fgf_cdx2_ppmlc_gata3/tiffs"
+rotated_dir: "/mnt/md1/elysse/fgf exp/20260218_fgf_cdx2_ppmlc_gata3/tiffs/rotated"
+segmentation_dir: "/mnt/md1/elysse/fgf exp/20260218_fgf_cdx2_ppmlc_gata3/segs/cleaned"
+segmentation_dir_raw: "/mnt/md1/elysse/fgf exp/20260218_fgf_cdx2_ppmlc_gata3/segs"
+output_dir: "/mnt/md1/elysse/fgf exp/20260218_fgf_cdx2_ppmlc_gata3/analysis"
+metadata_json: "/mnt/md1/elysse/fgf exp/20260218_fgf_cdx2_ppmlc_gata3/GFP.json"
+rotation_log: "/mnt/md1/elysse/fgf exp/20260218_fgf_cdx2_ppmlc_gata3/analysis/rotation_log.csv"
 
 
 file_extension: ".tif"
@@ -28,6 +28,11 @@ single_file_mode: false
 
 # target_file: "" #only use if single_file_mode is true
 
+
+#storage: t7: raw, seg, cleaned seg and analysis; md0: ""; weiner: ""
+#n_conditions: 2C, 4 tx
+
+#notes: fill in
 
 #Quality check
 exclusions: {}

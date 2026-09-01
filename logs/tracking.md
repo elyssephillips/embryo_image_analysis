@@ -63,4 +63,10 @@
 **Params/findings:** 113 tracks total. ICM centroid (t=30): Z=38, Y=178, X=140 µm. Implantation onset t=30 (450 min). Key result: ERK adds nothing to motion prediction after controlling for ICM distance (pure position effect). Within-cell ERK/speed cross-correlogram flat across ±150 min lags.
 **Next:** Continue analysis; Z motion excluded from motion analysis during implantation (embryo flattening artifact).
 
+### 2026-08-28 to 2026-09-01 | 00_preprocess_segmentation.py — new run 250914_stack5
+**Output:** `pipelines/tracking/segmentation_notes.md` (full working log + root-cause + recommendations); label tiffs at `/mnt/md0/elysse/nnUNet/inference/Dataset001_implantation/250914_stack5/labels/`
+**Done:** Rebuilt nnUNet-binary-mask → instance-segmentation → ICM/TE classification pipeline from scratch for a new inference run; the previous version of this step was never actually validated. Grid-searched splitting (combo intensity+EDT seeding, blended flooding) and ICM/TE classification (local neighbor-density ratio, replacing a "largest connected component" heuristic confirmed wrong) against hand-annotated ground truth at t=60 (84 nuclei) and 9 hand-labeled TE/ICM reference points.
+**Params/findings:** 76/84 instances matched (IoU≥0.5), mean volume error 7.3% on matches, mean boundary IoU 0.92 — beats both pretrained BlastoSPIM StarDist models tested against the same ground truth (best: 60/84, IoU 0.65) despite an exact voxel-size match to their training spacing. ICM share stable at 26-48% across all 121 timepoints (density-ratio approach, robust to the embryo flattening against the dish over the timecourse). Remaining errors cluster in low-contrast touching-nuclei pairs near the dish surface, traced to a real ceiling — see segmentation_notes.md's root-cause section — not a remaining parameter to tune.
+**Next:** Retrain nnUNet with an instance-aware target (border-aware 3-class, or fine-tuned StarDist) rather than continuing to tune post-processing further; see segmentation_notes.md recommendations. Once labels are trusted, proceed to 01_extract_features.py onward for this dataset.
+
 <!-- ds-end:dataset001_implantation -->

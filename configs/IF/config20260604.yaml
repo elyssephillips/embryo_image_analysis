@@ -10,7 +10,7 @@ rotation_log: "/mnt/md1/elysse/20260604_fixed/cropped/cdx2 ppmlc gata3_drift_cor
 
 file_extension: ".tif"
 
-datasets: "20260604_fixed"
+datasets: "20260604_meki_cdx2_ppmlc_gata3"
 
 microscopy:
   voxel_size_zyx: [1.0, 0.122666664, 0.122666664]
@@ -39,3 +39,10 @@ h5_conversion:
   crop: null  # manual crop: y0:y1:x0:x1 or z0:z1:y0:y1:x0:x1
   dtype: "float32"
   confirm_autocrop: true
+
+
+#storage: t7: raw and raw segs; weiner: raw and raw segs; mac: raw and cleaned segs and analysis
+
+#n_conditions: 3 C, 6 meki + 7 testing second panel
+
+#notes: fill in

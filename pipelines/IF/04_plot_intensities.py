@@ -13,9 +13,9 @@ import tifffile as tiff
 from pathlib import Path
 from datetime import datetime
 from scipy.stats import pearsonr, linregress, ttest_ind
-from src.io import load_config, update_master_study_log
+from src.io import load_config, update_master_study_log, get_storage_note, get_config_notes, get_config_n_conditions, summarize_config_metadata
 from src.analysis import normalize_by_dapi, map_values_to_labels, calculate_patterning_score
-from src.log import log_run
+from src.log import log_run, sync_notes
 
 
 def run_full_analysis():
@@ -60,7 +60,13 @@ def run_full_analysis():
 
     # 3. GLOBAL SCALES
     xy_um = config['microscopy']['voxel_size_zyx'][1]
-    df['center_y_um'] = df['center_y'] * xy_um
+
+    # Zeroed per embryo (top nucleus = 0), not just the image crop's top edge --
+    # doesn't change slopes/correlations (shift-invariant), only makes the
+    # "Top=0" axis label below actually exact instead of crop-margin-dependent.
+    def top_zeroed_y_um(group):
+        return (group['center_y'] - group['center_y'].min()) * xy_um
+    df['center_y_um'] = df.groupby('image_id', group_keys=False).apply(top_zeroed_y_um)
 
     g_max = df['GATA3_dapi_norm'].quantile(0.98)
     c_max = df['CDX2_dapi_norm'].quantile(0.98)
@@ -199,9 +205,9 @@ def run_full_analysis():
         if p < 0.05: return "*"
         return "ns"
 
-    plt.figure(figsize=(15, 6), facecolor='white')
+    plt.figure(figsize=(22, 6), facecolor='white')
 
-    ax_p = plt.subplot(1, 2, 1)
+    ax_p = plt.subplot(1, 3, 1)
     sns.boxplot(data=stat_df, x='group', y='pearson_r', palette='Set2', showfliers=False)
     sns.stripplot(data=stat_df, x='group', y='pearson_r', color='black', alpha=0.6)
     _, p_corr = ttest_ind(controls['pearson_r'], treated['pearson_r'])
@@ -212,7 +218,7 @@ def run_full_analysis():
     ax_p.text(0.5, y_max + p_off*1.6, get_stars(p_corr), ha='center', fontweight='bold')
     plt.title(f"Co-Expression (p={p_corr:.4f})")
 
-    ax_s = plt.subplot(1, 2, 2)
+    ax_s = plt.subplot(1, 3, 2)
     sns.boxplot(data=stat_df, x='group', y='gata3_y_slope', palette='Set2', showfliers=False)
     sns.stripplot(data=stat_df, x='group', y='gata3_y_slope', color='black', alpha=0.6)
     _, p_slope = ttest_ind(controls['gata3_y_slope'], treated['gata3_y_slope'])
@@ -223,9 +229,20 @@ def run_full_analysis():
     ax_s.text(0.5, y_max_s + s_off*1.6, get_stars(p_slope), ha='center', fontweight='bold')
     plt.title(f"GATA3 Gradient Strength (p={p_slope:.4f})")
 
+    ax_pat = plt.subplot(1, 3, 3)
+    sns.boxplot(data=stat_df, x='group', y='pattern_score', palette='Set2', showfliers=False)
+    sns.stripplot(data=stat_df, x='group', y='pattern_score', color='black', alpha=0.6)
+    _, p_pattern = ttest_ind(controls['pattern_score'], treated['pattern_score'])
+    y_max_pat = stat_df['pattern_score'].max()
+    pat_rng = stat_df['pattern_score'].max() - stat_df['pattern_score'].min()
+    pat_off = max(pat_rng * 0.08, 0.02)
+    ax_pat.plot([0, 0, 1, 1], [y_max_pat + pat_off, y_max_pat + pat_off*1.5, y_max_pat + pat_off*1.5, y_max_pat + pat_off], lw=1.5, c='k')
+    ax_pat.text(0.5, y_max_pat + pat_off*1.6, get_stars(p_pattern), ha='center', fontweight='bold')
+    plt.title(f"GATA3 Polarization Index (p={p_pattern:.4f})")
+
     plt.tight_layout()
     plt.savefig(output_dir / "vertical_group_comparison_with_stats.png", dpi=300, facecolor='white')
-    print(f"Comparison plot saved. Pearson P={p_corr:.5f}, Slope P={p_slope:.5f}")
+    print(f"Comparison plot saved. Pearson P={p_corr:.5f}, Slope P={p_slope:.5f}, Pattern P={p_pattern:.5f}")
 
 
 if __name__ == "__main__":
@@ -234,4 +251,7 @@ if __name__ == "__main__":
     dataset_id = Path(config['output_dir']).parts[-2]
     log_run("IF", dataset_id, "04_plot_intensities.py",
             output_path=config['output_dir'], detail="detailed",
-            data_path=config.get('raw_data_dir', config['output_dir']))
+            data_path=config.get('raw_data_dir', config['output_dir']),
+            storage=get_storage_note(), n_conditions=get_config_n_conditions(),
+            **summarize_config_metadata(config))
+    sync_notes("IF", dataset_id, get_config_notes())
