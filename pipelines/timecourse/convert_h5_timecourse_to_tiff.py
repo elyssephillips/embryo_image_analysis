@@ -22,7 +22,7 @@ from pathlib import Path
 # ── Dev override ──────────────────────────────────────────────────────────────
 # Set this to run the script directly (play button / F5) without CLI args.
 # Set to None to require CLI args instead.
-DEV_CONFIG = Path("configs/other live images/260804_c_meki_h2b_snap_2.yaml")
+DEV_CONFIG = Path("configs/other live images/260804_c_meki_h2b_snap_3.yaml")
 # ─────────────────────────────────────────────────────────────────────────────
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent

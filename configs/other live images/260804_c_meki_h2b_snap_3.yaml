@@ -1,12 +1,12 @@
 project:
-  name: "260804_c_meki_h2b_snap"
-  date: "2026-08-04"
-  dataset: "260804_c_meki_h2b_snap"
+  name: "260804_c_meki_h2b_snap_3"
+  date: "2026-08-06"
+  dataset: "260804_c_meki_h2b_snap_3"
   notes: ""
 
 paths:
-  raw_data_dir: "/mnt/md1/elysse/260804_c_meki_h2b_snap/tifs"
-  output_dir: "/mnt/md1/elysse/260804_c_meki_h2b_snap/analysis"
+  raw_data_dir: "/mnt/md1/elysse/260804_c_meki_h2b_snap/run 3/tifs"
+  output_dir: "/mnt/md1/elysse/260804_c_meki_h2b_snap/run 3/analysis"
 
 microscopy:
   instrument: "TruLive3D"
@@ -14,8 +14,8 @@ microscopy:
   software_version: "3.17.6-beta"
 
   # ZYX voxel size in microns (from processingInformation.voxel_size_um)
-  voxel_size_zyx_um: [1.25, 0.184, 0.184] #overriden, metadata wrong from lux
-  image_size_zyx: [61, 2368, 4432]
+  voxel_size_zyx_um: [1.25, 0.184, 0.184]
+  image_size_zyx: [91, 2368, 4432]
 
   detection_objective:
     model: ""  # TODO: not in Cam_*.json — fill in from the scope's objective config
@@ -35,60 +35,55 @@ microscopy:
       exposure_ms: null  # TODO: not in Cam_*.json
 
 acquisition:
-  n_timepoints: 28
-  interval_s: 2166.7
-  interval_min: 36.11
-  total_duration_h: 16.25
-  start_time: "2026-08-04 18:38:58"   # first frame, stack_0-ctrl 1
-  end_time: "2026-08-05 10:53:58"     # last frame, stack_0-ctrl 1
+  n_timepoints: 22
+  interval_s: 900.0
+  interval_min: 15.0
+  total_duration_h: 5.25
+  start_time: "2026-08-06 11:32:15"   # first frame, stack_0-ctrl 1
+  end_time: "2026-08-06 16:47:15"     # last frame, stack_0-ctrl 1
 
 stacks:
 
   - id: "stack_0-ctrl 1"
     condition: "ctrl"
     folder: "stack_0-ctrl 1_channel_0-bp 655_obj_bottom"
-    notes: "doesnt implant, probably starts to adhere. has a bunch of cells hatching or something?  " 
+    notes: "already outgrowing, doesnt outgrow a ton more.  "
   - id: "stack_1-ctrl"
     condition: "ctrl"
     folder: "stack_1-ctrl_channel_0-bp 655_obj_bottom"
-    notes: "same, also double pos"
+    notes: "is outgrowing but not very well no lumen, maybe not that many cells? try to look back and see what might makes this one inefficient at outgrowth"
   - id: "stack_2-ctrl"
     condition: "ctrl"
     folder: "stack_2-ctrl_channel_0-bp 655_obj_bottom"
-    notes: "mem only"
+    notes: "this one is so cool and weird, implanting on the side. nice protrusions, huge outgrowth. geometry is complicated cuz of the space it has but id still say icm ends up in the middle. "
   - id: "stack_3-ctrl 4"
-    condition: "ctrl"
+    condition: "ctrl_4"
     folder: "stack_3-ctrl 4_channel_0-bp 655_obj_bottom"
-    notes: "double pos and pretty, starting to attach and implant"
+    notes: "huge outgrowth."
   - id: "stack_4-meki 1"
-    condition: "meki"
+    condition: "meki_1"
     folder: "stack_4-meki 1_channel_0-bp 655_obj_bottom"
-    notes: "mem only. moved out of frame on top. doesnt attach"
+    notes: "i think is attached/is trying to protrude but not able to."
   - id: "stack_5-meki 2"
-    condition: "meki"
+    condition: "meki_2"
     folder: "stack_5-meki 2_channel_0-bp 655_obj_bottom"
-    notes: "mem only. i think is trying to implant but is struggling."  
+    notes: "same"
   - id: "stack_6-meki"
     condition: "meki"
     folder: "stack_6-meki_channel_0-bp 655_obj_bottom"
-    notes: "mem only. really nice membrane signal, doesnt implant."   
+    notes: "this one has more protrusions, more clearly attached and trying to implant but not really able to. "
   - id: "stack_7-meki 4"
-    condition: "meki"
+    condition: "meki_4"
     folder: "stack_7-meki 4_channel_0-bp 655_obj_bottom"
-    notes: "mem only. lumen collapsed/is pretty wonky. doenst implant."
+    notes: "same"
+
 # ── Timecourse TIFF conversion ────────────────────────────────────────────────
-# Run: python pipelines/timecourse/convert_h5_timecourse_to_tiff.py --config "configs/other live images/260804_c_meki_h2b_snap.yaml"
+# Run: python pipelines/timecourse/convert_h5_timecourse_to_tiff.py --config "configs/other live images/260804_c_meki_h2b_snap_3.yaml"
 live_timecourse:
-  root_dir: "/mnt/md1/elysse/260804_c_meki_h2b_snap/2026-08-04_183801/raw"
-  output_dir: "/mnt/md1/elysse/260804_c_meki_h2b_snap/tifs"
+  root_dir: "/mnt/md1/elysse/260804_c_meki_h2b_snap/run 3/2026-08-06_113118/raw"
+  output_dir: "/mnt/md1/elysse/260804_c_meki_h2b_snap/run 3/tifs"
   dataset_path: "Data"
   dtype: "uint16"
-
-  # Per-stack manual crop overrides (from inspect_crop_bounds_timecourse.py),
-  # scoped to this dataset -- not the shared configs/other live images/crop_overrides.yaml,
-  # which would collide across datasets sharing that folder (run 2 of this same
-  # experiment reuses the same stack_ids).
-  crop_overrides_file: "crop_overrides_260804_c_meki_h2b_snap.yaml"
 
   per_timepoint: true          # write one ZYX TIFF per timepoint per stack subfolder
   skip_stacks: []    # TODO: any stack_ids to exclude, e.g. ["stack_0"]

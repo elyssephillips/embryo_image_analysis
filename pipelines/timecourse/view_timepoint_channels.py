@@ -41,7 +41,7 @@ import tifffile
 from src.conversion import get_config_value, load_yaml_config
 
 # ============================== EDIT THESE ==============================
-CONFIG_PATH = PROJECT_ROOT / "configs" / "other live images" / "260804_c_meki_h2b_snap_2.yaml"  # path to the dataset's config.yaml (or a full path to any other config.yaml)
+CONFIG_PATH = PROJECT_ROOT / "configs" / "other live images" / "260804_c_meki_h2b_snap_3.yaml"  # path to the dataset's config.yaml (or a full path to any other config.yaml)
 STACK_FOLDER = "stack_7-meki_4"     # folder name under live_timecourse.output_dir
                     # (or a full path to a t*.tif folder anywhere else).
                     # Leave as None to list available folders and exit.

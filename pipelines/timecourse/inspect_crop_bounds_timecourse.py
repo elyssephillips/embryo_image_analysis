@@ -61,7 +61,7 @@ from src.conversion import (
 )
 
 # ============================== EDIT THESE ==============================
-CONFIG_PATH = PROJECT_ROOT / "configs" / "other live images" / "260804_c_meki_h2b_snap_2.yaml"  # edit if needed
+CONFIG_PATH = PROJECT_ROOT / "configs" / "other live images" / "260804_c_meki_h2b_snap_3.yaml"  # edit if needed
 STACKS = None   # e.g. ["stack_0", "stack_9-fgf "] to restrict, or None for all
                 # (stacks with an existing override are skipped unless named here)
 MIP_CACHE_SIZE = 24    # number of decoded (channel, timepoint) MIPs kept in RAM at once

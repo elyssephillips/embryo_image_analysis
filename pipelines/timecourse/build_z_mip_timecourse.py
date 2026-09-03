@@ -67,8 +67,8 @@ from src.conversion import build_live_stack_groups
 # ============================== EDIT THESE ==============================
 # Either the acquisition's raw/ folder itself, or its parent (the folder
 # containing raw/) — both are accepted.
-ROOT_DIR = Path("/mnt/md1/elysse/260804_c_meki_h2b_snap/run 2/2026-08-05_113254/raw")
-OUTPUT_DIR = Path("/mnt/md1/elysse/260804_c_meki_h2b_snap/run 2") / "timecourse_movies"  # where to write the MP4s and CSVs
+ROOT_DIR = Path("/mnt/md1/elysse/260804_c_meki_h2b_snap/run 3/2026-08-06_113118/raw")
+OUTPUT_DIR = Path("/mnt/md1/elysse/260804_c_meki_h2b_snap/run 3") / "timecourse_movies"  # where to write the MP4s and CSVs
 
 STACKS_INCLUDE = None   # e.g. ["stack_0"] to only process some stacks (all their channels); None = all
 
