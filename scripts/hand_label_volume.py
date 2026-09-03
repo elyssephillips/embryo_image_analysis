@@ -28,8 +28,8 @@ from skimage.measure import regionprops_table
 # =============================================================================
 #  CONFIG - edit these for the volume you're labeling
 # =============================================================================
-RAW_FILE = Path("/Users/elysse/Desktop/Cam_long_00069_cropped.tif")
-LABEL_FILE = Path("/Users/elysse/Desktop/Cam_long_00069_cropped_label.tif")
+RAW_FILE = Path("/Users/elysse/Desktop/Cam_long_00115_cropped.tif")
+LABEL_FILE = Path("/Users/elysse/Desktop/Cam_long_00115_cropped_label.tif")
 
 VOXEL_SIZE_ZYX = [2.0, 0.208, 0.208]  # µm per step/pixel
 # =============================================================================
