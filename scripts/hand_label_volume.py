@@ -28,8 +28,8 @@ from skimage.measure import regionprops_table
 # =============================================================================
 #  CONFIG - edit these for the volume you're labeling
 # =============================================================================
-RAW_FILE = Path("/Users/elysse/Desktop/Cam_long_00115_cropped.tif")
-LABEL_FILE = Path("/Users/elysse/Desktop/Cam_long_00115_cropped_label.tif")
+RAW_FILE = Path("/Users/elysse/Desktop/training/Cam_long_00030.tif")
+LABEL_FILE = Path("/Users/elysse/Desktop/training/Cam_long_00030_label.tif")
 
 VOXEL_SIZE_ZYX = [2.0, 0.208, 0.208]  # µm per step/pixel
 # =============================================================================
@@ -111,8 +111,34 @@ def run_hand_labeler():
         label_layer.selected_label = new_id
         print(f"Brush set to new ID: {new_id}")
 
+    @magicgui(call_button="Find ID")
+    def find_id(label_id: int):
+        mask = label_layer.data == label_id
+        if not np.any(mask):
+            print(f"ID {label_id} not found.")
+            return
+        centroid = np.argwhere(mask).mean(axis=0)
+        label_layer.selected_label = label_id
+        label_layer.show_selected_label = True
+
+        # 3D ray-casting can miss objects a few voxels or smaller (the ray grid
+        # is coarser than the voxel) even after centering/isolating - drop into
+        # a 2D single-slice view instead, which rasters per-pixel and can't miss it.
+        viewer.dims.ndisplay = 2
+        step = list(viewer.dims.current_step)
+        step[0] = int(round(centroid[0]))
+        viewer.dims.current_step = tuple(step)
+        viewer.camera.center = tuple(float(c) for c in centroid[1:] * np.array(VOXEL_SIZE_ZYX[1:]))
+        viewer.camera.zoom = 300
+        print(f"Jumped to ID {label_id} at z={step[0]}, isolated in 2D slice view.")
+
+    @magicgui(call_button="Show All Labels")
+    def show_all():
+        label_layer.show_selected_label = False
+
     viewer.window.add_dock_widget([save, refresh_ids], area="right", name="Save")
     viewer.window.add_dock_widget([delete_by_id, set_new_id], area="right", name="Editing Tools")
+    viewer.window.add_dock_widget([find_id, show_all], area="right", name="Find")
 
     napari.run()
 

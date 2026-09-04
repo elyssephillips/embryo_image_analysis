@@ -195,6 +195,49 @@ already in hand.
    "connected components, then expand_labels" — instance identity would already
    be correct coming out of the network.
 
+   **Update 2026-09-03 — the margin table above doesn't reproduce; replaced with
+   a margin-free approach.** Re-ran the same style of sweep directly against
+   this dataset (now 12 volumes: the original 6 plus 6 newly hand-annotated),
+   actually re-binarizing the eroded instances and connected-component-counting
+   the result, rather than trusting the numbers above. Real result: **no XY
+   margin from 1 to 8 voxels (up to 1.66µm) achieves full separation on any
+   volume** — the 115/117-at-1-voxel figure above doesn't hold up. Best guess:
+   the original sweep counted unique label IDs after erosion (trivially ≈ N
+   regardless of whether the eroded pieces still touch) rather than testing
+   true post-binarization spatial separation.
+
+   Separately, and independent of that bug: **a per-instance XY-only erosion
+   can never separate a pair that only touches across a Z-slice boundary**,
+   because it operates per-slice and never modifies Z-adjacency. Checked
+   directly: ~43% of touching clusters across the 12 volumes (90/208) are
+   Z-only contact. A margin big enough to fix the rest by brute force also
+   starts destroying thin real instances well before it gets there.
+
+   **Replacement: don't erode by a margin at all — remove exactly the contact
+   layer between two *different* instances, wherever it occurs (Z, Y, or X),
+   before binarizing.** Since instance identity is known ground truth at prep
+   time, this doesn't need a margin: for every voxel pair that's face-adjacent
+   across two different nonzero IDs, zero out both sides. This guarantees a
+   background gap at every point of contact, however wide or which axis, and
+   touches nothing on a surface that doesn't border another instance (so it
+   costs less real volume than blanket per-instance erosion, not more).
+   One side effect, checked directly: an instance that touches two different
+   neighbors near its own thin point can get nicked into extra fragments —
+   always single digits to low tens of voxels against a main body of
+   thousands, never a real second-sized piece. A follow-up pass keeps only
+   the largest fragment per original ID to clean this up.
+
+   Implemented as `separate_touching_instances` + `drop_stray_fragments` in
+   `pipelines/nnUNET/prepare_nnunet.py`, replacing the margin-erosion step.
+   Validated directly: `Cam_long_00000` and `Cam_long_00050_cropped` both hit
+   exact components == instances (117/117, 94/94) with 1.2-3.3% voxel loss and
+   nothing erased; `Cam_long_00074` comes out 2 short only because of 2
+   already-known 1-voxel noise IDs with no real nucleus behind them (expected
+   to close once those are deleted during hand-label cleanup).
+
+   The inference-side correction is unchanged: `expand_labels` after
+   connected-components on the predicted mask, same reasoning as above.
+
 2. **Fold ICM/TE identity into the same retraining, as a second use of the same
    eroded-mask target.** Train a 3-class target instead of 2 (background /
    eroded-ICM / eroded-TE) by assigning each already-separated eroded instance
