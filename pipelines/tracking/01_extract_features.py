@@ -25,7 +25,7 @@ REPO_ROOT   = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 from src.log import log_run
 
-CONFIG_PATH = REPO_ROOT / 'configs' / 'tracking' / 'dataset001_implantation.yaml'
+CONFIG_PATH = REPO_ROOT / 'configs' / 'tracking' / 'dataset003_icm_te_250914_stack5.yaml'  # edit to switch dataset
 with open(CONFIG_PATH) as f:
     cfg = yaml.safe_load(f)
 
@@ -41,8 +41,10 @@ VX_Y  = 0.208  # µm per y-pixel
 VX_X  = 0.208  # µm per x-pixel
 VOX_VOL = VX_Z * VX_Y * VX_X  # µm³ per voxel
 
+RAW_GLOB = cfg['paths'].get('raw_glob', 'Cam_long_*.tif')
+
 label_files = sorted(glob.glob(f"{LABEL_DIR}*_instances_reclassified.tif"))[:N_TIMEPOINTS]
-raw_files   = sorted(glob.glob(f"{RAW_DIR}Cam_long_*.tif"))[:N_TIMEPOINTS]
+raw_files   = sorted(glob.glob(f"{RAW_DIR}{RAW_GLOB}"))[:N_TIMEPOINTS]
 
 assert len(label_files) == N_TIMEPOINTS, \
     f"Expected {N_TIMEPOINTS} label files, found {len(label_files)}"
@@ -109,6 +111,7 @@ for t, (lf, rf) in enumerate(zip(label_files, raw_files)):
         })
 
 df = pd.DataFrame(records)
+Path(OUT_CSV).parent.mkdir(parents=True, exist_ok=True)
 df.to_csv(OUT_CSV, index=False)
 
 print(f"\nDone. Saved {len(df)} rows ({df['t'].nunique()} timepoints) to {OUT_CSV}")

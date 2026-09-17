@@ -108,7 +108,7 @@ stacks:
 # ── Timecourse TIFF conversion ────────────────────────────────────────────────
 # Run: python pipelines/timecourse/convert_h5_timecourse_to_tiff.py --config "configs/other live images/260721_e45c_fgf_oct4_snap.yaml"
 live_timecourse:
-  root_dir: "/mnt/md1/elysse/260721_E4.5c_fgf_oct4_snap/2026-07-21_184317/raw"
+  root_dir: "/mnt/md1/elysse/2026-07-21_184317/raw"
   output_dir: "/mnt/md1/elysse/260721_E4.5c_fgf_oct4_snap/tifs"
   dataset_path: "Data"
   dtype: "uint16"

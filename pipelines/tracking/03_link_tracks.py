@@ -29,7 +29,7 @@ REPO_ROOT   = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 from src.log import log_run
 
-CONFIG_PATH = REPO_ROOT / 'configs' / 'tracking' / 'dataset001_implantation.yaml'
+CONFIG_PATH = REPO_ROOT / 'configs' / 'tracking' / 'dataset003_icm_te_250914_stack5.yaml'  # edit to switch dataset
 with open(CONFIG_PATH) as f:
     _cfg = yaml.safe_load(f)
 

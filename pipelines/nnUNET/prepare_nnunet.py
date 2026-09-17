@@ -6,9 +6,12 @@ Steps per pair:
   2. Crop both raw and label from that slice onwards (matching)
   3. Remove the touching interface between any two different instances
      (see separate_touching_instances)
-  4. Assign each remaining instance its class - background=0, TE=1, ICM=2 -
-     using the {label_id: "ICM"} sidecar written by scripts/hand_label_icm_te.py
-     (IDs absent from that sidecar are TE; see that script's docstring)
+  4. Assign each remaining instance its class - background=0, nuclei=1, ICM=2 -
+     hierarchical, not three disjoint cell types: class 1 is every instance
+     not explicitly confirmed ICM (i.e. TE plus anything ambiguous/unmarked),
+     class 2 is only instances explicitly confirmed via the {label_id: "ICM"}
+     sidecar written by scripts/hand_label_icm_te.py. IDs absent from that
+     sidecar fall back to class 1 by convention (see that script's docstring).
   5. Save raw as imagesTr/Dataset001_XXXXX_0000.tif
   6. Save 3-class label as labelsTr/Dataset001_XXXXX.tif
 
@@ -19,9 +22,9 @@ Every label file needs a matching *.icm_te.json sidecar (same basename with
 the .tif swapped for .icm_te.json, e.g. Cam_long_00074.label.tif ->
 Cam_long_00074.label.icm_te.json) in LABEL_DIR - produced locally by
 scripts/hand_label_icm_te.py and copied over alongside the label tif. A
-missing sidecar is a hard error rather than a silent all-TE fallback, since
-the latter would quietly corrupt the training target instead of just being
-imprecise.
+missing sidecar is a hard error rather than a silent all-nuclei fallback,
+since the latter would quietly corrupt the training target instead of just
+being imprecise.
 
 Why step 3 isn't a plain `labels != 0` binarization
 -----------------------------------------------------
@@ -62,10 +65,11 @@ from pathlib import Path
 import numpy as np
 import tifffile
 
-LABEL_DIR = "/mnt/md0/elysse/training/labels"
-RAW_DIR   = "/mnt/md0/elysse/training/raw"
-OUT_DIR   = "/mnt/md0/elysse/training/nnUNet_raw/Dataset001_implantation"
-DATASET_NAME = "Dataset001"
+LABEL_DIR = "/mnt/md0/elysse/nnUNet/training files 260904/labels"
+RAW_DIR   = "/mnt/md0/elysse/nnUNet/training files 260904/raw"
+CLASS_DIR = "/mnt/md0/elysse/nnUNet/training files 260904/te labels"
+OUT_DIR   = "/mnt/md0/elysse/nnUNet/nnUNet_raw/Dataset003_icm_te"
+DATASET_NAME = "Dataset003"
 
 
 def separate_touching_instances(larr):
@@ -124,12 +128,12 @@ def drop_stray_fragments(larr):
         sub[drop_mask] = 0
     return cleaned
 
-def load_icm_ids(lpath):
+def load_icm_ids(lpath, class_dir):
     """Load the {label_id: "ICM"} sidecar written by scripts/hand_label_icm_te.py
-    for this label file. IDs not listed are TE by convention (see that
-    script's docstring). A missing sidecar is a hard error - see module
-    docstring for why."""
-    class_path = Path(lpath).with_suffix(".icm_te.json")
+    for this label file. IDs not listed fall back to the generic "nuclei"
+    class (see that script's docstring). A missing sidecar is a hard error -
+    see module docstring for why."""
+    class_path = Path(class_dir) / (Path(lpath).stem + ".icm_te.json")
     if not class_path.exists():
         raise FileNotFoundError(
             f"No ICM/TE sidecar for {lpath} (expected {class_path}). Run "
@@ -196,16 +200,17 @@ for lf in label_files:
     n_removed = int((larr_crop > 0).sum() - (separated > 0).sum())
     print(f"  Removed {n_removed} voxels (touching interfaces + stray nicks) to guarantee separation")
 
-    # Assign class: background=0, TE=1, ICM=2 (see load_icm_ids / module docstring)
-    icm_ids = load_icm_ids(lpath)
+    # Assign class: background=0, nuclei=1 (default), ICM=2 (explicitly confirmed)
+    # (see load_icm_ids / module docstring)
+    icm_ids = load_icm_ids(lpath, CLASS_DIR)
     class_label = np.zeros(separated.shape, dtype=np.uint8)
     class_label[separated > 0] = 1
     if icm_ids:
         class_label[np.isin(separated, list(icm_ids))] = 2
     ids_in_crop = set(np.unique(separated).tolist()) - {0}
     n_icm = len(ids_in_crop & icm_ids)
-    n_te = len(ids_in_crop) - n_icm
-    print(f"  Classes: {n_icm} ICM, {n_te} TE instances (unique values: {np.unique(class_label)})")
+    n_nuclei = len(ids_in_crop) - n_icm
+    print(f"  Classes: {n_icm} ICM, {n_nuclei} nuclei instances (unique values: {np.unique(class_label)})")
 
     img_fname  = f"{DATASET_NAME}_{orig_id}_0000.tif"
     lbl_fname  = f"{DATASET_NAME}_{orig_id}.tif"
@@ -233,14 +238,14 @@ dataset_json = {
     },
     "labels": {
         "background": 0,
-        "TE": 1,
+        "nuclei": 1,
         "ICM": 2
     },
     "numTraining": len(training_cases),
     "file_ending": ".tif",
     "training": training_cases,
-    "description": "Hand-annotated nuclei labels (TE/ICM), implantation dataset",
-    "name": "Dataset001_implantation",
+    "description": "Hand-annotated nuclei labels (hierarchical nuclei/ICM), implantation dataset",
+    "name": "Dataset003_icm_te",
     "reference": "",
     "licence": "",
     "release": "0.0"

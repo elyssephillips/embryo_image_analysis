@@ -24,7 +24,7 @@ from scipy.optimize import linear_sum_assignment
 from pathlib import Path
 
 REPO_ROOT   = Path(__file__).resolve().parents[2]
-CONFIG_PATH = REPO_ROOT / 'configs' / 'tracking' / 'dataset001_implantation.yaml'
+CONFIG_PATH = REPO_ROOT / 'configs' / 'tracking' / 'dataset003_icm_te_250914_stack5.yaml'  # edit to switch dataset
 with open(CONFIG_PATH) as f:
     cfg = yaml.safe_load(f)
 
@@ -169,6 +169,7 @@ def main():
         rows.append(sub)
 
     out_df = pd.concat(rows, ignore_index=True)
+    OUT_CSV.parent.mkdir(parents=True, exist_ok=True)
     out_df.to_csv(OUT_CSV, index=False)
     np.savez_compressed(OUT_NPZ, transforms=transforms)
 

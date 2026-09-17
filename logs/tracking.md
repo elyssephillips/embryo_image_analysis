@@ -6,6 +6,7 @@
 |---|---|---|---|---|---|
 | dataset001_implantation | 4D nuclei tracking, implantation timelapse (H2B + ERK) | 113 tracks, 101t, 1 embryo (250913_stack2) | `/mnt/md1/elysse/dataset001_implantation/` | 2026-05-26 | active analysis — linked_c62 | <!-- row:dataset001_implantation -->
 
+| dataset003_icm_te_250914_stack5 | ERK-KTR and H2B imaging from late blastocyst through implantation | 1 control | `...e/Dataset003_icm_te/250914_stack5/imagesTs/tifs` | 2026-09-09 | tracking | <!-- row:dataset003_icm_te_250914_stack5 -->
 <!-- index-end -->
 
 ---
@@ -70,3 +71,17 @@
 **Next:** Retrain nnUNet with an instance-aware target (border-aware 3-class, or fine-tuned StarDist) rather than continuing to tune post-processing further; see segmentation_notes.md recommendations. Once labels are trusted, proceed to 01_extract_features.py onward for this dataset.
 
 <!-- ds-end:dataset001_implantation -->
+
+<!-- ds:dataset003_icm_te_250914_stack5 -->
+## dataset003_icm_te_250914_stack5
+
+**Description:** ERK-KTR and H2B imaging from late blastocyst through implantation  
+**N / Conditions:** 1 control  
+**Data path:** /mnt/md0/elysse/nnUNet/inference/Dataset003_icm_te/250914_stack5/imagesTs/tifs
+
+### 2026-09-09 10:31 | 01_extract_features.py
+**Output:** /mnt/md0/elysse/nnUNet/inference/Dataset003_icm_te/250914_stack5/results/features/features.csv
+**Done:** 
+**Next:** continue tracking analysis
+
+<!-- ds-end:dataset003_icm_te_250914_stack5 -->

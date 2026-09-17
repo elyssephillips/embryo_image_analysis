@@ -22,7 +22,7 @@ from pathlib import Path
 # ── Dev override ──────────────────────────────────────────────────────────────
 # Set this to run the script directly (play button / F5) without CLI args.
 # Set to None to require CLI args instead.
-DEV_CONFIG = Path("configs/other live images/260804_c_meki_h2b_snap_3.yaml")
+DEV_CONFIG = Path("configs/other live images/260721_e45c_fgf_oct4_snap.yaml")
 # ─────────────────────────────────────────────────────────────────────────────
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -90,6 +90,9 @@ def main():
                              "Easier to load in Napari for large datasets.")
     parser.add_argument("--stacks", nargs="+", default=None,
                         help="Process only these stack IDs (default: all).")
+    parser.add_argument("--force", action="store_true",
+                        help="Redo stacks even if their output already exists "
+                             "(default: skip a crop's output if it's already fully written).")
     args = parser.parse_args()
 
     # Config loading
@@ -190,98 +193,118 @@ def main():
             print(msg)
 
     n_stacks = len(stack_ids)
+    failed_stacks = []
     for stack_num, stack_id in enumerate(stack_ids, 1):
         print(f"\n[{stack_num}/{n_stacks}] {stack_id}", flush=True)
 
-        # Build channel_timepoint_files[c][t]
-        items_sorted = sorted(groups[stack_id], key=lambda x: x[0])
-        channel_timepoint_files = []
-        for ch_idx, folder in items_sorted:
-            tp_files = find_h5_files_sorted(folder)
-            channel_timepoint_files.append(tp_files)
-            print(f"  ch{ch_idx}: {len(tp_files)} timepoints in {folder.name}", flush=True)
+        try:
+            # Build channel_timepoint_files[c][t]
+            items_sorted = sorted(groups[stack_id], key=lambda x: x[0])
+            channel_timepoint_files = []
+            for ch_idx, folder in items_sorted:
+                tp_files = find_h5_files_sorted(folder)
+                channel_timepoint_files.append(tp_files)
+                print(f"  ch{ch_idx}: {len(tp_files)} timepoints in {folder.name}", flush=True)
 
-        # Warn if timepoint counts differ across channels
-        tp_counts = [len(f) for f in channel_timepoint_files]
-        if len(set(tp_counts)) > 1:
-            print(f"  WARNING: unequal timepoint counts across channels {tp_counts}; using minimum.")
-        n_tp = min(tp_counts)
-        channel_timepoint_files = [files[:n_tp] for files in channel_timepoint_files]
+            # Warn if timepoint counts differ across channels
+            tp_counts = [len(f) for f in channel_timepoint_files]
+            if len(set(tp_counts)) > 1:
+                print(f"  WARNING: unequal timepoint counts across channels {tp_counts}; using minimum.")
+            n_tp = min(tp_counts)
+            channel_timepoint_files = [files[:n_tp] for files in channel_timepoint_files]
 
-        # Determine crop bounds
-        #
-        # crops_to_write: list of (out_name, crop_bounds_or_None). Multiple
-        # entries arise when crop_overrides.yaml has a `crops` list for this
-        # stack (e.g. two embryos in one field of view) — mirrors the
-        # embryo-splitting behavior in convert_h5_channels_to_tiff.py.
-        stack_entry = crop_overrides.get(stack_id) or {}
-        override_crops_list = stack_entry.get("crops")   # list of crop strings
-        override_crop_str = stack_entry.get("crop")       # single crop string
-        out_name = stack_id.replace(" ", "_")
+            # Determine crop bounds
+            #
+            # crops_to_write: list of (out_name, crop_bounds_or_None). Multiple
+            # entries arise when crop_overrides.yaml has a `crops` list for this
+            # stack (e.g. two embryos in one field of view) — mirrors the
+            # embryo-splitting behavior in convert_h5_channels_to_tiff.py.
+            stack_entry = crop_overrides.get(stack_id) or {}
+            override_crops_list = stack_entry.get("crops")   # list of crop strings
+            override_crop_str = stack_entry.get("crop")       # single crop string
+            out_name = stack_id.replace(" ", "_")
 
-        def _parse_crop_override(cs):
-            spec = parse_crop_arg(cs)
-            if len(spec) == 6:
-                return tuple(spec)
-            y0o, y1o, x0o, x1o = spec
-            with h5py.File(channel_timepoint_files[0][0], "r") as _f:
-                nzo, _, _ = _effective_zyx_shape(_get_h5_dataset(_f, dataset_path))
-            return (0, nzo, y0o, y1o, x0o, x1o)
-
-        if override_crops_list:
-            crops_to_write = []
-            for idx, cs in enumerate(override_crops_list, 1):
-                bounds = _parse_crop_override(cs)
-                z0, z1, y0, y1, x0, x1 = bounds
-                print(f"  Embryo {idx}: z={z0}:{z1}, y={y0}:{y1}, x={x0}:{x1}", flush=True)
-                crops_to_write.append((f"{out_name}_embryo{idx}", bounds))
-
-        elif override_crop_str:
-            bounds = _parse_crop_override(override_crop_str)
-            z0, z1, y0, y1, x0, x1 = bounds
-            print(f"  Crop override: z={z0}:{z1}, y={y0}:{y1}, x={x0}:{x1}", flush=True)
-            crops_to_write = [(out_name, bounds)]
-
-        elif auto_crop:
-            if n_tp_for_crop is not None:
-                import numpy as np
-                tp_indices = [int(i) for i in np.linspace(0, n_tp - 1, n_tp_for_crop, dtype=int)]
-                print(f"  Computing autocrop from {n_tp_for_crop} evenly-spaced timepoints: {tp_indices}", flush=True)
-            else:
-                tp_indices = [0, n_tp - 1]
-                print(f"  Computing autocrop from first (t=0) and last (t={n_tp - 1}) timepoints...", flush=True)
-            bounds = autocrop_bounds_from_timepoints(
-                channel_timepoint_files, tp_indices, dataset_path,
-                pad, threshold, threshold_percentile, blur_sigma, auto_crop_channel,
-            )
-            z0, z1, y0, y1, x0, x1 = bounds
-            print(f"  Autocrop bounds: z={z0}:{z1}, y={y0}:{y1}, x={x0}:{x1}", flush=True)
-            crops_to_write = [(out_name, bounds)]
-
-        elif crop:
-            spec = parse_crop_arg(crop)
-            if len(spec) == 4:
-                y0c, y1c, x0c, x1c = spec
+            def _parse_crop_override(cs):
+                spec = parse_crop_arg(cs)
+                if len(spec) == 6:
+                    return tuple(spec)
+                y0o, y1o, x0o, x1o = spec
                 with h5py.File(channel_timepoint_files[0][0], "r") as _f:
-                    nz, _, _ = _effective_zyx_shape(_get_h5_dataset(_f, dataset_path))
-                bounds = (0, nz, y0c, y1c, x0c, x1c)
-            else:
-                bounds = tuple(spec)
-            crops_to_write = [(out_name, bounds)]
+                    nzo, _, _ = _effective_zyx_shape(_get_h5_dataset(_f, dataset_path))
+                return (0, nzo, y0o, y1o, x0o, x1o)
 
-        else:
-            crops_to_write = [(out_name, None)]
+            if override_crops_list:
+                crops_to_write = []
+                for idx, cs in enumerate(override_crops_list, 1):
+                    bounds = _parse_crop_override(cs)
+                    z0, z1, y0, y1, x0, x1 = bounds
+                    print(f"  Embryo {idx}: z={z0}:{z1}, y={y0}:{y1}, x={x0}:{x1}", flush=True)
+                    crops_to_write.append((f"{out_name}_embryo{idx}", bounds))
 
-        for crop_out_name, bounds in crops_to_write:
-            if per_timepoint:
-                tp_dir = output_dir / crop_out_name
-                print(f"  Writing per-timepoint TIFFs ({n_tp}t × {len(channel_timepoint_files)}c) → {tp_dir}/", flush=True)
-                write_tiff_per_timepoint_streaming(tp_dir, channel_timepoint_files, dataset_path, dtype, bounds)
+            elif override_crop_str:
+                bounds = _parse_crop_override(override_crop_str)
+                z0, z1, y0, y1, x0, x1 = bounds
+                print(f"  Crop override: z={z0}:{z1}, y={y0}:{y1}, x={x0}:{x1}", flush=True)
+                crops_to_write = [(out_name, bounds)]
+
+            elif auto_crop:
+                if n_tp_for_crop is not None:
+                    import numpy as np
+                    tp_indices = [int(i) for i in np.linspace(0, n_tp - 1, n_tp_for_crop, dtype=int)]
+                    print(f"  Computing autocrop from {n_tp_for_crop} evenly-spaced timepoints: {tp_indices}", flush=True)
+                else:
+                    tp_indices = [0, n_tp - 1]
+                    print(f"  Computing autocrop from first (t=0) and last (t={n_tp - 1}) timepoints...", flush=True)
+                bounds = autocrop_bounds_from_timepoints(
+                    channel_timepoint_files, tp_indices, dataset_path,
+                    pad, threshold, threshold_percentile, blur_sigma, auto_crop_channel,
+                )
+                z0, z1, y0, y1, x0, x1 = bounds
+                print(f"  Autocrop bounds: z={z0}:{z1}, y={y0}:{y1}, x={x0}:{x1}", flush=True)
+                crops_to_write = [(out_name, bounds)]
+
+            elif crop:
+                spec = parse_crop_arg(crop)
+                if len(spec) == 4:
+                    y0c, y1c, x0c, x1c = spec
+                    with h5py.File(channel_timepoint_files[0][0], "r") as _f:
+                        nz, _, _ = _effective_zyx_shape(_get_h5_dataset(_f, dataset_path))
+                    bounds = (0, nz, y0c, y1c, x0c, x1c)
+                else:
+                    bounds = tuple(spec)
+                crops_to_write = [(out_name, bounds)]
+
             else:
-                output_path = output_dir / f"{crop_out_name}.tif"
-                print(f"  Writing TCZYX TIFF ({n_tp}t × {len(channel_timepoint_files)}c) → {output_path}", flush=True)
-                write_tiff_tczyx_streaming(output_path, channel_timepoint_files, dataset_path, dtype, bounds)
-        print(f"  Done. [{stack_num}/{n_stacks}]", flush=True)
+                crops_to_write = [(out_name, None)]
+
+            for crop_out_name, bounds in crops_to_write:
+                if per_timepoint:
+                    tp_dir = output_dir / crop_out_name
+                    if not args.force and tp_dir.is_dir():
+                        n_existing = len(list(tp_dir.glob("t*.tif")))
+                        if n_existing >= n_tp:
+                            print(f"  Skipping {crop_out_name}: already has {n_existing}/{n_tp} "
+                                  f"timepoint TIFFs (use --force to redo).", flush=True)
+                            continue
+                    print(f"  Writing per-timepoint TIFFs ({n_tp}t × {len(channel_timepoint_files)}c) → {tp_dir}/", flush=True)
+                    write_tiff_per_timepoint_streaming(tp_dir, channel_timepoint_files, dataset_path, dtype, bounds)
+                else:
+                    output_path = output_dir / f"{crop_out_name}.tif"
+                    if not args.force and output_path.exists():
+                        print(f"  Skipping {crop_out_name}: {output_path} already exists "
+                              f"(use --force to redo).", flush=True)
+                        continue
+                    print(f"  Writing TCZYX TIFF ({n_tp}t × {len(channel_timepoint_files)}c) → {output_path}", flush=True)
+                    write_tiff_tczyx_streaming(output_path, channel_timepoint_files, dataset_path, dtype, bounds)
+            print(f"  Done. [{stack_num}/{n_stacks}]", flush=True)
+
+        except Exception as e:
+            failed_stacks.append(stack_id)
+            print(f"  FAILED: {stack_id}: {type(e).__name__}: {e}", flush=True)
+            continue
+
+    if failed_stacks:
+        print(f"\n{len(failed_stacks)} stack(s) failed and were skipped: {failed_stacks}", flush=True)
 
     _proj = (config or {}).get("project", {})
     dataset_id       = _proj.get("dataset", config_path.stem if config_path else "unknown")
