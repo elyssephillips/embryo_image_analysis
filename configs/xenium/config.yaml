@@ -1,0 +1,37 @@
+project:
+  name: "Oocyte / granulosa - Xenium transcript counts"
+
+paths:
+  input_dir: "/Users/elysse/Downloads/Files for elysse"
+  output_dir: "/Users/elysse/Downloads/Files for elysse/analysis"
+
+# Xenium Explorer PNG export filenames expected inside input_dir
+layers:
+  annotations: "annotations_layer.png"
+  transcripts: "transcripts_layer.png"
+
+# Granulosa cell outline colors as exported by Xenium Explorer (annotations_layer.png), RGB 0-255.
+# layer1 is the inner ring (borders the oocyte) and is what defines the oocyte boundary.
+# layer2 is the outer ring -- kept here for future use (e.g. per-layer counts) but not
+# currently read by the script.
+granulosa_colors:
+  layer1:
+    rgb: [255, 100, 100]
+    tolerance: 20
+  layer2:
+    rgb: [69, 139, 255]
+    tolerance: 20
+alpha_min: 51  # out of 255; drops faint anti-aliased fringe pixels
+
+# Transcript dot detection (green dots in transcripts_layer.png)
+transcript_color:
+  green_dominance_min: 20  # G must exceed both R and B by at least this much
+
+# Morphological closing radius (in microns) used to bridge small gaps in
+# granulosa layer 1 before filling it in to get the oocyte mask.
+closing_radius_um: 3.0
+
+# Scale bar is auto-detected (light gray horizontal bar, bottom-right of image).
+# Set this to override auto-detection if it ever fails.
+scale_bar_um: 50
+px_per_um_override: null
