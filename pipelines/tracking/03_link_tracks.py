@@ -19,7 +19,6 @@ Output:
 """
 
 import sys
-import yaml
 import numpy as np
 import pandas as pd
 from scipy.optimize import linear_sum_assignment
@@ -29,9 +28,10 @@ REPO_ROOT   = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 from src.log import log_run
 
-CONFIG_PATH = REPO_ROOT / 'configs' / 'tracking' / 'dataset003_icm_te_250914_stack5.yaml'  # edit to switch dataset
-with open(CONFIG_PATH) as f:
-    _cfg = yaml.safe_load(f)
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+from src.tracking_config import load_tracking_config
+_cfg, CONFIG_PATH = load_tracking_config()   # --config X.yaml, else TRACKING_CONFIG / default
 
 FEATURES_CSV     = Path(_cfg['paths']['features_registered_csv'])
 RAW_FEATURES_CSV = Path(_cfg['paths']['features_csv'])

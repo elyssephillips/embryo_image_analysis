@@ -1,0 +1,41 @@
+# Fine-tuning config for trackastra scripts/train.py (driven by
+# pipelines/tracking/trackastra_training/03_trackastra_finetune.py, which adds name, model,
+# input_train, input_val, outdir and cachedir per fold).
+
+# --- Must match the pretrained "ctc" model (~/.local/share/trackastra/models/ctc/
+# config.yaml + train_config.yaml). train.py's defaults differ (e.g. d_model 256)
+# and its mismatch check against the loaded config is unreliable, so pin them.
+ndim: 3
+window: 4
+d_model: 512
+num_encoder_layers: 6
+num_decoder_layers: 6
+pos_embed_per_dim: 32
+feat_embed_per_dim: 8
+dropout: 0.0
+spatial_pos_cutoff: 256
+attn_positional_bias: rope
+attn_positional_bias_n_spatial: 16
+attn_dist_mode: v0
+causal_norm: quiet_softmax
+features: wrfeat
+delta_cutoff: 1
+div_upweight: 3.0
+max_tokens: 1024
+# Level 3 rotates/shears in the y-x plane only and flips/scales z
+# independently, so it never mixes the 2.0 um z step into 0.208 um xy.
+augment: 3
+
+# --- Fine-tuning choices (small curated set: ~700 detections over 3 windows)
+lr: 3.0e-5          # pretrained run used 1e-4; lower to adapt rather than overwrite
+epochs: 30
+warmup_epochs: 2
+batch_size: 8
+train_samples: 2000 # per epoch, resampled with augmentation from the few training windows
+seed: 42
+
+# --- Runtime
+distributed: false
+logger: none        # tensorboard/wandb not installed in napari_env
+num_workers: 4
+timestamp: true

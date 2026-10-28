@@ -29,6 +29,7 @@ MIN_SIGNAL_PIXELS trades essentially no risk of missing real signal for
 immunity to single/few-pixel artifacts.
 """
 
+import argparse
 import os
 import re
 import json
@@ -43,10 +44,21 @@ DATASET_NAME = "Dataset003"
 
 N_GPU_SPLITS = 2  # number of imagesTs_gpuN folders to create for parallel nnUNetv2_predict; 1 to disable
 
+# Optional CLI overrides of the config above, e.g. for a new stack:
+#   python prepare_inference.py --long-dir X/cropped --short-dir X/cropped --output-dir X
+parser = argparse.ArgumentParser()
+parser.add_argument("--long-dir", default=LONG_DIR)
+parser.add_argument("--short-dir", default=SHORT_DIR)
+parser.add_argument("--output-dir", default=OUTPUT_DIR)
+parser.add_argument("--n-gpu-splits", type=int, default=N_GPU_SPLITS)
+args = parser.parse_args()
+LONG_DIR, SHORT_DIR, OUTPUT_DIR, N_GPU_SPLITS = args.long_dir, args.short_dir, args.output_dir, args.n_gpu_splits
+
 SAFETY_SLICES        = 5    # slices to keep as buffer beyond first/last detected signal
 BACKGROUND_PERCENTILE = 10  # percentile of per-slice maxima used to estimate background
 SIGNAL_MULTIPLIER     = 2.0 # threshold = background * this; raise if over-including background
 MIN_SIGNAL_PIXELS     = 50  # min pixels above threshold for a slice to count as real signal (not debris)
+UNIFORM_Z_CROP        = True  # crop every timepoint to the same z range (union of all frames' signal)
 
 images_out    = os.path.join(OUTPUT_DIR, "imagesTs")
 cam_short_out = os.path.join(OUTPUT_DIR, "cam_short_cropped")
@@ -76,7 +88,7 @@ for lf in long_files:
         print(f"  WARNING: no matching Cam_short for {lf}, skipping")
         continue
 
-    print(f"Processing timepoint {tp_id}")
+    print(f"Detecting signal, timepoint {tp_id}")
     long_arr  = tifffile.imread(lpath)   # (Z, Y, X)
     short_arr = tifffile.imread(spath)   # (Z, Y, X)
 
@@ -97,10 +109,38 @@ for lf in long_files:
 
     first_signal_z = int(signal_slices[0])
     last_signal_z  = int(signal_slices[-1])
-    first_z = max(0, first_signal_z - SAFETY_SLICES)
-    last_z  = min(long_arr.shape[0], last_signal_z + SAFETY_SLICES + 1)
-    print(f"  Background ~{background_level:.0f}, threshold={threshold:.0f}")
-    print(f"  Signal z={first_signal_z}-{last_signal_z}, cropping to z={first_z}-{last_z} (safety={SAFETY_SLICES})")
+    print(f"  Background ~{background_level:.0f}, threshold={threshold:.0f}, signal z={first_signal_z}-{last_signal_z}")
+
+    crop_info[tp_id] = {
+        "cam_long_source": lf,
+        "cam_short_source": sf,
+        "original_shape": list(long_arr.shape),
+        "first_signal_z": first_signal_z,
+        "last_signal_z": last_signal_z,
+    }
+
+# Pass 2: crop and save. With UNIFORM_Z_CROP every frame gets the same
+# [first_z, last_z) so voxel index z means the same physical depth in every
+# frame - per-frame crops forced padding workarounds downstream for stack5
+# (03_run_trackastra.py, 03_trackastra_export_ctc.py, curate_pairs.py).
+if UNIFORM_Z_CROP:
+    n_z = {v["original_shape"][0] for v in crop_info.values()}
+    assert len(n_z) == 1, f"inconsistent original z depths: {n_z}"
+    global_first_z = max(0, min(v["first_signal_z"] for v in crop_info.values()) - SAFETY_SLICES)
+    global_last_z  = min(n_z.pop(), max(v["last_signal_z"] for v in crop_info.values()) + SAFETY_SLICES + 1)
+    print(f"\nUniform z crop for all timepoints: z={global_first_z}-{global_last_z} "
+          f"({global_last_z - global_first_z} slices, safety={SAFETY_SLICES})\n")
+
+for tp_id, info in crop_info.items():
+    long_arr  = tifffile.imread(os.path.join(LONG_DIR, info["cam_long_source"]))
+    short_arr = tifffile.imread(os.path.join(SHORT_DIR, info["cam_short_source"]))
+
+    if UNIFORM_Z_CROP:
+        first_z, last_z = global_first_z, global_last_z
+    else:
+        first_z = max(0, info["first_signal_z"] - SAFETY_SLICES)
+        last_z  = min(long_arr.shape[0], info["last_signal_z"] + SAFETY_SLICES + 1)
+    print(f"Timepoint {tp_id}: cropping to z={first_z}-{last_z}")
 
     long_crop  = long_arr[first_z:last_z]
     short_crop = short_arr[first_z:last_z]
@@ -118,16 +158,11 @@ for lf in long_files:
 
     tifffile.imwrite(os.path.join(cam_short_out, short_fname), short_crop)
 
-    crop_info[tp_id] = {
-        "cam_long_source": lf,
-        "cam_short_source": sf,
-        "original_shape": list(long_arr.shape),
-        "first_signal_z": first_signal_z,
-        "last_signal_z": last_signal_z,
+    info.update({
         "first_z": first_z,
         "last_z": last_z,
         "cropped_shape": list(long_crop.shape),
-    }
+    })
 
     print(f"  Saved: {img_fname}, {short_fname}\n")
 

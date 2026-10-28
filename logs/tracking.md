@@ -7,6 +7,8 @@
 | dataset001_implantation | 4D nuclei tracking, implantation timelapse (H2B + ERK) | 113 tracks, 101t, 1 embryo (250913_stack2) | `/mnt/md1/elysse/dataset001_implantation/` | 2026-05-26 | active analysis — linked_c62 | <!-- row:dataset001_implantation -->
 
 | dataset003_icm_te_250914_stack5 | ERK-KTR and H2B imaging from late blastocyst through implantation | 1 control | `...e/Dataset003_icm_te/250914_stack5/imagesTs/tifs` | 2026-09-09 | tracking | <!-- row:dataset003_icm_te_250914_stack5 -->
+| dataset003_icm_te_stack2 | h2b mirfp E4.5-E5.5 MSKCC nnunet |  | `.../Dataset003_icm_te/stack_2/imagesTs` | 2026-10-20 | in progress | <!-- row:dataset003_icm_te_stack2 -->
+| dataset003_icm_te_stack11 | stack 11 from MSKCC 250914 control outgrowth | 1 | `...Net/inference/Dataset003_icm_te/stack_11/labels` | 2026-10-21 | tracking | <!-- row:dataset003_icm_te_stack11 -->
 <!-- index-end -->
 
 ---
@@ -85,3 +87,31 @@
 **Next:** continue tracking analysis
 
 <!-- ds-end:dataset003_icm_te_250914_stack5 -->
+
+<!-- ds:dataset003_icm_te_stack2 -->
+## dataset003_icm_te_stack2
+
+**Description:** h2b mirfp E4.5-E5.5 MSKCC nnunet  
+**N / Conditions:**   
+**Data path:** /mnt/md1/elysse/nnUNet/inference/Dataset003_icm_te/stack_2/imagesTs
+
+### 2026-10-20 10:25 | 01_extract_features.py
+**Output:** /mnt/md1/elysse/nnUNet/inference/Dataset003_icm_te/stack_2/results/features/features.csv
+**Done:** 
+**Next:** 
+
+<!-- ds-end:dataset003_icm_te_stack2 -->
+
+<!-- ds:dataset003_icm_te_stack11 -->
+## dataset003_icm_te_stack11
+
+**Description:** stack 11 from MSKCC 250914 control outgrowth  
+**N / Conditions:** 1  
+**Data path:** /mnt/md1/elysse/nnUNet/inference/Dataset003_icm_te/stack_11/labels
+
+### 2026-10-21 11:46 | 03_run_trackastra.py
+**Output:** /mnt/md1/elysse/nnUNet/inference/Dataset003_icm_te/stack_11/results/tracks/trackastra/tracks_trackastra_ft_reg2_final.csv
+**Done:** 
+**Next:** 
+
+<!-- ds-end:dataset003_icm_te_stack11 -->

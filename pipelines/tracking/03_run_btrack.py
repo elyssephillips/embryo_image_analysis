@@ -1,4 +1,4 @@
-import yaml
+import sys
 import numpy as np
 import pandas as pd
 import btrack
@@ -6,9 +6,10 @@ from btrack.constants import BayesianUpdateFeatures
 from pathlib import Path
 
 REPO_ROOT   = Path(__file__).resolve().parents[2]
-CONFIG_PATH = REPO_ROOT / 'configs' / 'tracking' / 'dataset003_icm_te_250914_stack5.yaml'  # edit to switch dataset
-with open(CONFIG_PATH) as f:
-    cfg = yaml.safe_load(f)
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+from src.tracking_config import load_tracking_config
+cfg, CONFIG_PATH = load_tracking_config()   # --config X.yaml, else TRACKING_CONFIG / default
 
 REG_CSV      = Path(cfg['paths']['features_registered_csv'])
 RAW_CSV      = Path(cfg['paths']['features_csv'])

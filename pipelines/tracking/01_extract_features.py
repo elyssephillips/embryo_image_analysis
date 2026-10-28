@@ -24,10 +24,9 @@ from skimage.measure import regionprops, marching_cubes, mesh_surface_area
 REPO_ROOT   = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 from src.log import log_run
+from src.tracking_config import load_tracking_config
 
-CONFIG_PATH = REPO_ROOT / 'configs' / 'tracking' / 'dataset003_icm_te_250914_stack5.yaml'  # edit to switch dataset
-with open(CONFIG_PATH) as f:
-    cfg = yaml.safe_load(f)
+cfg, CONFIG_PATH = load_tracking_config()   # --config X.yaml, else TRACKING_CONFIG / default
 
 # --- Paths ---
 LABEL_DIR    = cfg['paths']['label_dir']

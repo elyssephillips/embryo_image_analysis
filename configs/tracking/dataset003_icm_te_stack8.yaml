@@ -1,0 +1,127 @@
+project:
+  name: "Dataset003 ICM/TE — Nuclei Tracking"
+  dataset_id: "stack_8_channel_0_obj_bottom"
+
+# ── nnUNet inference (run_inference.py) ──────────────────────────────────
+# Prep (pipelines/nnUNET/prepare_inference.py) crops every timepoint to one
+# uniform z range, writes imagesTs/, imagesTs_gpuN/, cam_short_cropped/ and
+# crop_info.json under output_dir; predictions go to paths.nnunet_dir.
+nnunet_inference:
+  source_long_dir: "/mnt/md1/elysse/nnUNet/inference/Dataset003_icm_te/stack_8_channel_0_obj_bottom/cropped/"
+  source_short_dir: "/mnt/md1/elysse/nnUNet/inference/Dataset003_icm_te/stack_8_channel_0_obj_bottom/cropped/"
+  output_dir: "/mnt/md1/elysse/nnUNet/inference/Dataset003_icm_te/stack_8_channel_0_obj_bottom/"
+  conda_env: "nnunet"
+  dataset: "Dataset003_icm_te"
+  trainer: "nnUNetTrainer_500epochs"
+  configuration: "3d_fullres"
+  plans: "nnUNetPlans"
+  folds: [0, 1, 2, 3, 4]
+  gpus: [0, 1]   # one nnUNetv2_predict per GPU, each on a contiguous timepoint chunk
+
+paths:
+  # 3-class nnUNet predictions (0=background, 1=nuclei/TE, 2=ICM), trained on
+  # contact-layer-separated instances (see prepare_nnunet.py separate_touching_instances) —
+  # input to 00_preprocess_segmentation_dataset003.py
+  nnunet_dir: "/mnt/md1/elysse/nnUNet/inference/Dataset003_icm_te/stack_8_channel_0_obj_bottom/predictions/tifs/"
+  nnunet_glob: "*.tif"
+
+  # Nuclear channel (H2B / Cam_long), cropped to match nnUNet inference input
+  raw_dir: "/mnt/md1/elysse/nnUNet/inference/Dataset003_icm_te/stack_8_channel_0_obj_bottom/imagesTs/"
+  raw_glob: "Dataset003_*_0000.tif"
+
+  # Instance-segmented label tiffs (one 3D tiff per timepoint)
+  label_dir: "/mnt/md1/elysse/nnUNet/inference/Dataset003_icm_te/stack_8_channel_0_obj_bottom/labels/"
+  label_glob: "*_instances_reclassified.tif"
+
+  # ERK biosensor channel (Cam_short), cropped identically to raw_dir by prepare_inference.py.
+  erk_dir: "/mnt/md1/elysse/nnUNet/inference/Dataset003_icm_te/stack_8_channel_0_obj_bottom/cam_short_cropped/"
+  erk_glob: "Cam_short_*_cropped.tif"
+
+  # prepare_inference.py per-timepoint crop offsets. Uniform z crop here: every
+  # timepoint has the same first_z/depth, so frames align voxel-for-voxel in z.
+  crop_info: "/mnt/md1/elysse/nnUNet/inference/Dataset003_icm_te/stack_8_channel_0_obj_bottom/crop_info.json"
+
+  # ── Intermediate data ────────────────────────────────────────────────────────
+  features_csv: "/mnt/md1/elysse/nnUNet/inference/Dataset003_icm_te/stack_8_channel_0_obj_bottom/results/features/features.csv"
+  features_registered_csv: "/mnt/md1/elysse/nnUNet/inference/Dataset003_icm_te/stack_8_channel_0_obj_bottom/results/features/features_registered.csv"
+  transforms_npz: "/mnt/md1/elysse/nnUNet/inference/Dataset003_icm_te/stack_8_channel_0_obj_bottom/results/features/transforms.npz"
+  # PyMCubes surface meshes + mesh shape descriptors (01_extract_meshes.py)
+  mesh_features_csv: "/mnt/md1/elysse/nnUNet/inference/Dataset003_icm_te/stack_8_channel_0_obj_bottom/results/features/mesh_features.csv"
+  mesh_dir: "/mnt/md1/elysse/nnUNet/inference/Dataset003_icm_te/stack_8_channel_0_obj_bottom/results/meshes/"
+  # ICM region from the nnUNet ICM class + each TE nucleus's distance to it,
+  # keyed by (t, label_id) - 01_extract_icm_region.py
+  icm_distance_csv: "/mnt/md1/elysse/nnUNet/inference/Dataset003_icm_te/stack_8_channel_0_obj_bottom/results/features/icm_distance.csv"
+  icm_summary_csv: "/mnt/md1/elysse/nnUNet/inference/Dataset003_icm_te/stack_8_channel_0_obj_bottom/results/features/icm_summary.csv"
+
+  # ── Tracking config ──────────────────────────────────────────────────────────
+  btrack_config_json: "/mnt/md0/elysse/code/embryo_image_analysis/configs/tracking/cell_config.json"
+
+  # ── Tracking outputs ─────────────────────────────────────────────────────────
+  btrack_output_dir: "/mnt/md1/elysse/nnUNet/inference/Dataset003_icm_te/stack_8_channel_0_obj_bottom/results/tracks/btrack/"
+  linked_tracks_dir: "/mnt/md1/elysse/nnUNet/inference/Dataset003_icm_te/stack_8_channel_0_obj_bottom/results/tracks/linked/"
+  trackastra_output_dir: "/mnt/md1/elysse/nnUNet/inference/Dataset003_icm_te/stack_8_channel_0_obj_bottom/results/tracks/trackastra/"
+  # Where the analysis scripts (05+) read tracks_{input_version}.csv from.
+  # Curated trackastra tracks live in trackastra_output_dir, not linked_tracks_dir.
+  tracks_dir: "/mnt/md1/elysse/nnUNet/inference/Dataset003_icm_te/stack_8_channel_0_obj_bottom/results/tracks/trackastra/"
+  # curated windows exported in CTC format for trackastra fine-tuning (trackastra_training/03_trackastra_export_ctc.py)
+  trackastra_train_dir: "/mnt/md1/elysse/nnUNet/inference/Dataset003_icm_te/stack_8_channel_0_obj_bottom/results/trackastra_train/"
+
+  # track-relabeled 4D TIFF for curation (voxel value = track_id + 1).
+  # Only read by archive/10_napari_flow_overlay.py.
+  track_labels_tiff: "/mnt/md1/elysse/nnUNet/inference/Dataset003_icm_te/stack_8_channel_0_obj_bottom/results/tracks/linked/track_labels_linked.tif"
+
+  # ── Analysis outputs ─────────────────────────────────────────────────────────
+  output_dir: "/mnt/md1/elysse/nnUNet/inference/Dataset003_icm_te/stack_8_channel_0_obj_bottom/results/analysis/"
+
+microscopy:
+  n_timepoints: 121
+  voxel_size_zyx: [2.0, 0.208, 0.208]
+
+tracking:
+  # Analysis scripts (05+) read tracks_{input_version}.csv from paths.tracks_dir
+  # and suffix every output with it - bump this to analyse a newer curation round.
+  # The 04 notebooks pin their own RELOAD_VERSION / OUTPUT_VERSION_OVERRIDE;
+  # output_version is only their fallback save name.
+  input_version: "linked_c1"   # no curation yet for stack8
+  output_version: "linked_c1"
+
+  # Full range by default - no known-unreliable early frames confirmed yet for
+  # this dataset (unlike dataset001_implantation_250914_stack5.yaml's t_start=16
+  # exclusion, which was specific to that run). Revisit after a first 02/03 pass.
+  t_start: 0
+  t_end: 120
+
+  frame_interval_min: 15   # TODO: copied from stack5 - confirm for stack8 acquisition
+  min_track_length: 5
+
+motion:
+  msd:
+    max_lag_fraction: 0.5
+    min_lags_for_fit: 4
+  flow_field:
+    k_neighbors: 6
+
+erk:
+  # Copied from dataset001 (same acquisition, Cam_short KTR channel) - not yet
+  # re-tuned for this crop. Check 05_erk_cn_ratio.py's printed background level.
+  ring_radius_um: 1.0        # Voronoi-constrained cytoplasmic ring width in µm
+  bg_multiplier: 3.0         # ring voxels with ERK < bg_level * bg_multiplier are excluded
+                             # bg_level estimated from top 3 z-planes of cam_short at t=0
+
+biology:
+  # Pre/during-implantation split for 06-10. 30 = dataset001's onset.
+  implantation_onset_t: 30   # TODO: copied from stack5 - set for stack8
+  # ICM distance comes from paths.icm_distance_csv (01_extract_icm_region.py,
+  # signed distance to the ICM hull edge). icm_centroid_t30_zyx is only
+  # 10_highlight_tracks_cn_overlay.py's ICM marker (default: icm_summary_csv at onset).
+  # icm_centroid_t30_zyx: [z, y, x]
+
+analysis:
+  # Per-track summary windows for 06_build_track_table.py (used by 07/08):
+  #   pre    = t_start <= t < biology.implantation_onset_t
+  #   during = implantation_onset_t <= t <= during_end_t
+  #   end    = the movie's last end_frames frames (t_end - end_frames < t <= t_end);
+  #            tracks that stop earlier get NaN for the _end measures
+  during_end_t: null        # null = tracking.t_end
+  end_frames: 20
+  min_window_frames: 3      # fewer frames than this in a window -> NaN

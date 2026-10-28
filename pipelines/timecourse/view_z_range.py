@@ -37,7 +37,7 @@ CONFIG_PATH = PROJECT_ROOT / "configs" / "other live images" / "260804_c_meki_h2
 STACK_FOLDER = "stack_3-ctrl_4"     # folder name under live_timecourse.output_dir
                     # (or a full path to a t*.tif folder anywhere else).
                     # Leave as None to list available folders and exit.
-Z_RANGE = (55, 58)  # (start, stop) Z indices to load, stop-exclusive.
+Z_RANGE = (50, 60)  # (start, stop) Z indices to load, stop-exclusive.
                     # Set to None to load the full Z range.
 TIMEPOINT_CACHE_SIZE = 6   # number of Z-cropped timepoint volumes kept in RAM at once.
 # ==========================================================================

@@ -2,16 +2,11 @@
 Preprocess Dataset003 (3-class, eroded-instance-trained) nnUNet output →
 instance-segmented, ICM-removed label tiffs.
 
-Unlike 00_preprocess_segmentation.py (Dataset001, binary output, no instance
-awareness at all), this model was trained on contact-layer-separated instances
+This model was trained on contact-layer-separated instances
 (prepare_nnunet.py's separate_touching_instances: the 1-voxel interface between
 any two touching hand-labeled instances is zeroed before binarizing, on
-whichever axis the contact occurs - Z, Y, or X). So instance identity should
-already mostly exist in the raw prediction as disconnected components, and
-ICM/TE identity is a direct network output (class 2 vs class 1) instead of the
-post-hoc neighbor-density heuristic the Dataset001 pipeline needed. In
-principle this collapses the old watershed/seeding/flooding reconstruction
-(see segmentation_notes.md) down to:
+whichever axis the contact occurs - Z, Y, or X). 
+ICM/TE identity is a direct network output (class 2 vs class 1). 
 
   1. Connected components on the foreground (class 1 or 2).
   2. Per instance, majority-vote ICM vs TE from the class channel.
@@ -19,31 +14,20 @@ principle this collapses the old watershed/seeding/flooding reconstruction
      Dataset001 pipeline's output contract so downstream 01_extract_features.py
      etc. don't need to change.
 
-In practice step 1 needed one real lever: checked directly against t=60
-ground truth (see EXTRA_ERODE_UM below), the network's own contact-layer gap
-alone (plain connected components, no extra erosion) only separated 54/84
-instances correctly - confirmed visually as real residual merges, some in Z,
-some in XY, not just eyeballing noise. Eroding the foreground a bit further
+Eroding the foreground a bit further
 before taking connected components, then growing each resulting piece back
 out to its true (pre-erosion) extent with skimage.segmentation.expand_labels
 (clipped to the original foreground so growth can't invent volume beyond what
 the network actually predicted as nuclei), recovered most of the gap: 76/84
 at a 1.5um erosion. expand_labels assigns each background voxel to its
 *nearest* label within the given distance - unlike dilation, two components a
-few voxels apart don't get re-fused, so this works as a real split, not just
-a blur. Diminishing returns past 1.5um and a real cost to thin instances at
-some larger radius not yet found - see CONFIG comment for the exact numbers
-and re-check against more than one timepoint before trusting this further.
-
-No raw-intensity step is needed here at all (no watershed) - the previous
-pipeline's intensity/EDT seeding existed only to reconstruct instance identity
-that the binary Dataset001 model never had; Dataset003 already encodes it.
-
-Tune parameters in the CONFIG block below.
+few voxels apart don't get re-fused. Diminishing returns past 1.5um and a real cost to thin instances at
+some larger radius not yet found. Tune parameters in the CONFIG block below.
 """
 
+import os
 import glob
-import yaml
+import sys
 import numpy as np
 import tifffile
 from pathlib import Path
@@ -52,9 +36,10 @@ from skimage.measure import label, regionprops
 from skimage.segmentation import expand_labels
 
 REPO_ROOT   = Path(__file__).resolve().parents[2]
-CONFIG_PATH = REPO_ROOT / 'configs' / 'tracking' / 'dataset003_icm_te_250914_stack5.yaml'  # edit to switch dataset
-with open(CONFIG_PATH) as f:
-    cfg = yaml.safe_load(f)
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+from src.tracking_config import load_tracking_config
+cfg, CONFIG_PATH = load_tracking_config()   # --config X.yaml, else TRACKING_CONFIG / default
 
 # =============================================================================
 #  CONFIG
@@ -72,32 +57,10 @@ VX_Z, VX_Y, VX_X = cfg['microscopy']['voxel_size_zyx']
 VOX_VOL  = VX_Z * VX_Y * VX_X  # µm³ per voxel
 SPACING  = (VX_Z, VX_Y, VX_X)
 
-# --- Instancing ---
-# Checked directly against the same t=60 hand-annotated ground truth used to
-# tune the old Dataset001 pipeline (same physical stack, so it applies here
-# too - 84 instances, /mnt/md0/elysse/nnUNet/training files 260427/labels/
-# Cam_long_00060_cropped_label.tif, Z-offset 44 into its 91-slice label to
-# align with this crop's 47 slices): plain connected-components on the raw
-# prediction (erode=0, i.e. trusting the network's own trained-in
-# contact-layer gap alone) only matched 54/84 at IoU>=0.5 - confirms the
-# visually-observed residual Z/XY merges are real, not just eyeballing noise,
-# and that the network's own gap under-separates on its own. A small extra
-# erosion before connected components recovers most of the gap: 0.5um jumped
-# to 73/84, 1.5um reached 76/84 (mean IoU 0.831) - matching the old pipeline's
-# best result despite doing far less work. Diminishing returns past 1.5um
-# (2.0um: still 76/84, slightly lower mean IoU) - so 1.5um is the current
-# default, not 0. Only a one-timepoint check so far (see segmentation_notes.md
-# for the validation-habit rationale) - worth re-checking against another
-# annotated timepoint before treating this as final.
+
 EXTRA_ERODE_UM = 1.5   # spacing-aware (physical µm) erosion radius before CC, 0 to disable
 
-# How far to grow each eroded piece back out toward its true boundary.
-# Should be >= EXTRA_ERODE_UM (plus a small margin) so erosion doesn't
-# permanently cost real volume - expand_labels won't grow past EXPAND_UM or
-# past the original foreground mask (see clip step below), so setting this
-# generously high costs nothing extra as long as EXTRA_ERODE_UM > 0. 3.0 and
-# 4.0 gave identical results in the t=60 check above, so this isn't sensitive.
-EXPAND_UM = 3.0
+EXPAND_UM = 3.0 #generous but wont go beyond the original foreground mask, so it won't fuse two nearby instances together
 
 # --- ICM/TE classification ---
 # An instance is only called ICM if at least this fraction of its voxels are
@@ -105,8 +68,7 @@ EXPAND_UM = 3.0
 # deliberately not a 50/50 majority vote: dropping a real TE nucleus by
 # misclassifying it ICM silently removes a real cell from every downstream
 # analysis, while wrongly keeping a real ICM nucleus in the TE output is just
-# one noisy point - the two error types are not equally costly, so the
-# threshold shouldn't treat them as if they were. Checked directly against
+# one noisy point. Checked directly against
 # the t=60 ICM/TE ground truth (/mnt/md0/elysse/nnUNet/training files 260904/
 # te labels/Cam_long_00060_cropped_label.icm_te.json): every matched instance
 # at that timepoint was either 100% or 0% class-2 (no partially-mixed
@@ -210,8 +172,7 @@ def flag_ambiguous_classification(all_labels, raw, class_map, frac_icm_map, lo=0
     """
     QC only: instances whose class-2 voxel fraction falls strictly between lo
     and hi are the ones the ICM_MIN_FRAC threshold actually has to make a call
-    on (see that CONFIG comment - the t=60 check found none, so this is
-    speculative until a timepoint with real mixed instances turns one up).
+    on.
     For each, also reports mean raw intensity and elongation (major/minor
     axis ratio from the inertia tensor: for a solid ellipsoid with semi-axes
     a>=b>=c, a^2 ~ lam1+lam2-lam3 and c^2 ~ lam2+lam3-lam1 where lam1>=lam2>=lam3
@@ -291,8 +252,8 @@ def process_timepoint(pred_path, raw_path, t):
 
 def main():
     Path(OUT_DIR).mkdir(parents=True, exist_ok=True)
-    pred_files = sorted(glob.glob(f"{PRED_DIR}{PRED_GLOB}"))[:N_TIMEPOINTS]
-    raw_files  = sorted(glob.glob(f"{RAW_DIR}{RAW_GLOB}"))[:N_TIMEPOINTS]
+    pred_files = sorted(glob.glob(os.path.join(PRED_DIR, PRED_GLOB)))[:N_TIMEPOINTS]
+    raw_files  = sorted(glob.glob(os.path.join(RAW_DIR, RAW_GLOB)))[:N_TIMEPOINTS]
     assert len(pred_files) == N_TIMEPOINTS, \
         f"Expected {N_TIMEPOINTS} prediction files, found {len(pred_files)}"
     assert len(raw_files) == N_TIMEPOINTS, \

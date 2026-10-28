@@ -25,7 +25,16 @@ python pipelines/nnUNET/prepare_inference.py
 ```
 
 Edit the CONFIG block at the top of that script (`LONG_DIR`, `SHORT_DIR`, `OUTPUT_DIR`,
-`DATASET_NAME`) to point at whichever raw stack and dataset you're running.
+`DATASET_NAME`) to point at whichever raw stack and dataset you're running, or pass
+`--long-dir`, `--short-dir`, `--output-dir`, `--n-gpu-splits` (defaults are the stack5 values).
+
+`UNIFORM_Z_CROP = True` (default) crops every timepoint to the same z range (union of
+all frames' signal + `SAFETY_SLICES`), so every `first_z` in `crop_info.json` is the same.
+stack5 was run before this existed and has per-frame crops.
+
+New stacks run prep + prediction (steps 2 and 3) in one go with `run_inference.py` in
+this folder, driven by the `nnunet_inference:` block of the stack's tracking config
+(e.g. `configs/tracking/dataset003_icm_te_stack8.yaml`; set `CONFIG_PATH` at the top).
 
 Outputs, under `OUTPUT_DIR` (e.g. `inference/Dataset003_icm_te/250914_stack5/`):
 - `imagesTs/` — all Cam_long crops for nnUNet, one folder

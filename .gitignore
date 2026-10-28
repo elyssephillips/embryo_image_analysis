@@ -17,3 +17,7 @@ results/
 *.tiff
 *.h5
 *.zarr
+
+# src/log.py lock/temp files
+logs/.*.lock
+logs/.*.tmp

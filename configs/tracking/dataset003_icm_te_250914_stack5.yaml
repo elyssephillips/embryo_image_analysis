@@ -21,10 +21,26 @@ paths:
   erk_dir: "/mnt/md0/elysse/nnUNet/inference/Dataset003_icm_te/250914_stack5/cam_short_cropped/"
   erk_glob: "Cam_short_*_cropped.tif"
 
+  # prepare_inference.py per-timepoint crop offsets. This stack predates
+  # UNIFORM_Z_CROP: each timepoint has its own first_z/depth, plus
+  # debris_shift_slices on some frames (scripts/fix_debris_crop_offsets.py).
+  crop_info: "/mnt/md0/elysse/nnUNet/inference/Dataset003_icm_te/250914_stack5/crop_info.json"
+
   # ── Intermediate data ────────────────────────────────────────────────────────
   features_csv: "/mnt/md0/elysse/nnUNet/inference/Dataset003_icm_te/250914_stack5/results/features/features.csv"
   features_registered_csv: "/mnt/md0/elysse/nnUNet/inference/Dataset003_icm_te/250914_stack5/results/features/features_registered.csv"
   transforms_npz: "/mnt/md0/elysse/nnUNet/inference/Dataset003_icm_te/250914_stack5/results/features/transforms.npz"
+  # TRAINING ONLY - v2 registration (02_register_centroids.py, 2026-10-19) of this
+  # stack, for trackastra fine-tuning. Analysis keeps features_registered_csv above
+  # (v1), which the hand-curated tracks were made against.
+  training_registration_dir: "/mnt/md0/elysse/nnUNet/inference/Dataset003_icm_te/250914_stack5/results/trackastra_train/registration_v2/"
+  # PyMCubes surface meshes + mesh shape descriptors (01_extract_meshes.py)
+  mesh_features_csv: "/mnt/md0/elysse/nnUNet/inference/Dataset003_icm_te/250914_stack5/results/features/mesh_features.csv"
+  mesh_dir: "/mnt/md0/elysse/nnUNet/inference/Dataset003_icm_te/250914_stack5/results/meshes/"
+  # ICM region from the nnUNet ICM class + each TE nucleus's distance to it,
+  # keyed by (t, label_id) - 01_extract_icm_region.py
+  icm_distance_csv: "/mnt/md0/elysse/nnUNet/inference/Dataset003_icm_te/250914_stack5/results/features/icm_distance.csv"
+  icm_summary_csv: "/mnt/md0/elysse/nnUNet/inference/Dataset003_icm_te/250914_stack5/results/features/icm_summary.csv"
 
   # ── Tracking config ──────────────────────────────────────────────────────────
   btrack_config_json: "/mnt/md0/elysse/code/embryo_image_analysis/configs/tracking/cell_config.json"
@@ -32,8 +48,15 @@ paths:
   # ── Tracking outputs ─────────────────────────────────────────────────────────
   btrack_output_dir: "/mnt/md0/elysse/nnUNet/inference/Dataset003_icm_te/250914_stack5/results/tracks/btrack/"
   linked_tracks_dir: "/mnt/md0/elysse/nnUNet/inference/Dataset003_icm_te/250914_stack5/results/tracks/linked/"
+  trackastra_output_dir: "/mnt/md0/elysse/nnUNet/inference/Dataset003_icm_te/250914_stack5/results/tracks/trackastra/"
+  # Where the analysis scripts (05+) read tracks_{input_version}.csv from.
+  # Curated trackastra tracks live in trackastra_output_dir, not linked_tracks_dir.
+  tracks_dir: "/mnt/md0/elysse/nnUNet/inference/Dataset003_icm_te/250914_stack5/results/tracks/trackastra/"
+  # curated windows exported in CTC format for trackastra fine-tuning (trackastra_training/03_trackastra_export_ctc.py)
+  trackastra_train_dir: "/mnt/md0/elysse/nnUNet/inference/Dataset003_icm_te/250914_stack5/results/trackastra_train/"
 
-  # track-relabeled 4D TIFF for curation (voxel value = track_id + 1)
+  # track-relabeled 4D TIFF for curation (voxel value = track_id + 1).
+  # Only read by archive/10_napari_flow_overlay.py.
   track_labels_tiff: "/mnt/md0/elysse/nnUNet/inference/Dataset003_icm_te/250914_stack5/results/tracks/linked/track_labels_linked.tif"
 
   # ── Analysis outputs ─────────────────────────────────────────────────────────
@@ -44,13 +67,12 @@ microscopy:
   voxel_size_zyx: [2.0, 0.208, 0.208]
 
 tracking:
-  # 03_link_tracks.py writes a literal 'tracks_linked.csv' (not versioned by
-  # output_version in the filename), so input_version must be "linked" - not
-  # null - for 04_curate_tracks.ipynb's f'tracks_{VERSION}.csv' to find it.
-  # output_version is the curation notebook's own output naming for the first
-  # corrected pass - bump this (linked_c2, c3, ...) each curation round.
-  input_version: "linked"
-  output_version: "linked_c1"
+  # Analysis scripts (05+) read tracks_{input_version}.csv from paths.tracks_dir
+  # and suffix every output with it - bump this to analyse a newer curation round.
+  # The 04 notebooks pin their own RELOAD_VERSION / OUTPUT_VERSION_OVERRIDE;
+  # output_version is only their fallback save name.
+  input_version: "linked_c49"
+  output_version: "linked_c50"
 
   # Full range by default - no known-unreliable early frames confirmed yet for
   # this dataset (unlike dataset001_implantation_250914_stack5.yaml's t_start=16
@@ -67,3 +89,28 @@ motion:
     min_lags_for_fit: 4
   flow_field:
     k_neighbors: 6
+
+erk:
+  # Copied from dataset001 (same acquisition, Cam_short KTR channel) - not yet
+  # re-tuned for this crop. Check 05_erk_cn_ratio.py's printed background level.
+  ring_radius_um: 1.0        # Voronoi-constrained cytoplasmic ring width in µm
+  bg_multiplier: 3.0         # ring voxels with ERK < bg_level * bg_multiplier are excluded
+                             # bg_level estimated from top 3 z-planes of cam_short at t=0
+
+biology:
+  # Pre/during-implantation split for 06-10. 30 = dataset001's onset.
+  implantation_onset_t: 30
+  # ICM distance comes from paths.icm_distance_csv (01_extract_icm_region.py,
+  # signed distance to the ICM hull edge). icm_centroid_t30_zyx is only
+  # 10_highlight_tracks_cn_overlay.py's ICM marker (default: icm_summary_csv at onset).
+  # icm_centroid_t30_zyx: [z, y, x]
+
+analysis:
+  # Per-track summary windows for 06_build_track_table.py (used by 07/08):
+  #   pre    = t_start <= t < biology.implantation_onset_t
+  #   during = implantation_onset_t <= t <= during_end_t
+  #   end    = the movie's last end_frames frames (t_end - end_frames < t <= t_end);
+  #            tracks that stop earlier get NaN for the _end measures
+  during_end_t: null        # null = tracking.t_end
+  end_frames: 20
+  min_window_frames: 3      # fewer frames than this in a window -> NaN

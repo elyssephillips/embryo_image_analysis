@@ -15,8 +15,11 @@ Usage:
 from __future__ import annotations
 
 import datetime
+import fcntl
+import os
 import re
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -47,6 +50,25 @@ def _prompt(label: str, default: str = "") -> str:
         return default
 
 
+@contextmanager
+def _locked(path: Path):
+    """Hold an exclusive lock on path's read-modify-write, so two scripts logging
+    at once can't each read the old text and drop the other's update."""
+    LOGS_DIR.mkdir(exist_ok=True)
+    with open(path.with_name(f".{path.name}.lock"), "w") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        yield
+
+
+def _write_atomic(path: Path, text: str) -> None:
+    """Write via a temp file + rename. A plain write_text truncates first, so a
+    process killed mid-write (or a reader in that window) saw an empty log, and
+    the next log_run rebuilt it from nothing - this wiped tracking.md on 2026-10-20."""
+    tmp = path.with_name(f".{path.name}.tmp")
+    tmp.write_text(text)
+    os.replace(tmp, path)
+
+
 def _log_path(pipeline: str) -> Path:
     fname = PIPELINE_FILES.get(pipeline)
     if not fname:
@@ -58,7 +80,7 @@ def _init_log(path: Path, pipeline: str) -> None:
     LOGS_DIR.mkdir(exist_ok=True)
     title = {"preprocessing": "Preprocessing", "tracking": "Tracking",
              "IF": "IF", "nnunet": "nnUNet"}.get(pipeline, pipeline)
-    path.write_text(
+    _write_atomic(path,
         f"# {title} Log\n\n"
         "## Dataset Index\n\n"
         "| Dataset | Description | N / Conditions | Data path | Last updated | Status |\n"
@@ -177,6 +199,14 @@ def sync_dataset_fields(pipeline: str, dataset_id: str, storage: str = "", data_
     path = _log_path(pipeline)
     if not path.exists():
         return
+    with _locked(path):
+        _sync_dataset_fields_locked(path, dataset_id, storage, data_path, n_conditions,
+                                    channels, voxel_size, exclusions)
+
+
+def _sync_dataset_fields_locked(path: Path, dataset_id: str, storage: str, data_path: str,
+                                n_conditions: str, channels: str, voxel_size: str,
+                                exclusions: str) -> None:
     text = path.read_text()
     if _is_new_dataset(text, dataset_id):
         return  # no section yet -- don't fabricate one or an index row outside log_run
@@ -195,7 +225,7 @@ def sync_dataset_fields(pipeline: str, dataset_id: str, storage: str = "", data_
     if n_conditions or data_path:
         new_text = _update_index_row(new_text, dataset_id, n_conditions=n_conditions, data_path=data_path)
     if new_text != text:
-        path.write_text(new_text)
+        _write_atomic(path, new_text)
 
 
 def sync_notes(pipeline: str, dataset_id: str, note: str) -> None:
@@ -213,6 +243,11 @@ def sync_notes(pipeline: str, dataset_id: str, note: str) -> None:
     path = _log_path(pipeline)
     if not path.exists():
         return
+    with _locked(path):
+        _sync_notes_locked(path, dataset_id, note)
+
+
+def _sync_notes_locked(path: Path, dataset_id: str, note: str) -> None:
     text = path.read_text()
     ds_start = _DS_START.format(dataset_id)
     ds_end = _DS_END.format(dataset_id)
@@ -229,7 +264,7 @@ def sync_notes(pipeline: str, dataset_id: str, note: str) -> None:
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
     entry = f"### {now} | note\n**Note:** {note}\n"
     new_text = _insert_entry(text, dataset_id, entry)
-    path.write_text(new_text)
+    _write_atomic(path, new_text)
 
 
 def _parse_index_row(text: str, dataset_id: str) -> dict:
@@ -319,9 +354,11 @@ def log_run(
         return
 
     path = _log_path(pipeline)
-    if not path.exists():
-        _init_log(path, pipeline)
-
+    with _locked(path):
+        if not path.exists() or not path.read_text().strip():
+            _init_log(path, pipeline)
+    # Read without the lock to choose prompts; re-read under it before writing,
+    # since the prompts can sit waiting for input while other scripts log.
     text = path.read_text()
     now  = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
 
@@ -371,6 +408,17 @@ def log_run(
 
     entry = "\n".join(parts)
 
+    with _locked(path):
+        text = path.read_text()
+        is_new = _is_new_dataset(text, dataset_id)
+        _apply_run_entry(path, text, dataset_id, entry, is_new, description, n_conditions,
+                         data_path, status, storage, channels, voxel_size, exclusions)
+    print(f"[log] Saved → {path}")
+
+
+def _apply_run_entry(path: Path, text: str, dataset_id: str, entry: str, is_new: bool,
+                     description: str, n_conditions: str, data_path: str, status: str,
+                     storage: str, channels: str, voxel_size: str, exclusions: str) -> None:
     if is_new:
         text = _add_dataset_section(text, dataset_id, description, n_conditions, data_path,
                                      storage=storage, channels=channels, voxel_size=voxel_size,
@@ -383,13 +431,12 @@ def log_run(
                 text = _upsert_field_line(text, dataset_id, label, value)
     text = _update_index_row(text, dataset_id, description, n_conditions, data_path, status)
     text = _insert_entry(text, dataset_id, entry)
-    path.write_text(text)
-    print(f"[log] Saved → {path}")
+    _write_atomic(path, text)
 
 
 def _init_conversions(path: Path) -> None:
     LOGS_DIR.mkdir(exist_ok=True)
-    path.write_text(
+    _write_atomic(path,
         "# Dataset Conversion Registry\n\n"
         "Tracks raw H5 acquisitions → TIFF output. "
         "Updated automatically by `convert_h5_timecourse_to_tiff.py`.\n\n"
@@ -413,10 +460,6 @@ def log_conversion(
     auto-populated from the script context. Re-running updates the existing row.
     """
     path = LOGS_DIR / "conversions.md"
-    if not path.exists():
-        _init_conversions(path)
-
-    text  = path.read_text()
     today = datetime.date.today().isoformat()
 
     notes = ""
@@ -428,6 +471,18 @@ def log_conversion(
             print("\n[log] Skipped.")
             return
 
+    with _locked(path):
+        if not path.exists() or not path.read_text().strip():
+            _init_conversions(path)
+        _apply_conversion_row(path, dataset_id, raw_path, output_path, n_stacks,
+                              acquisition_date, condition, notes, today)
+    print(f"[log] Conversion logged → {path}")
+
+
+def _apply_conversion_row(path: Path, dataset_id: str, raw_path: str, output_path: str,
+                          n_stacks: int, acquisition_date: str, condition: str,
+                          notes: str, today: str) -> None:
+    text      = path.read_text()
     marker    = _CONV_ROW.format(dataset_id)
     short_raw = raw_path if len(raw_path) < 45 else "..." + raw_path[-42:]
     short_out = output_path if len(output_path) < 45 else "..." + output_path[-42:]
@@ -442,5 +497,4 @@ def log_conversion(
     else:
         text = text.replace(_CONV_END, new_row + "\n" + _CONV_END)
 
-    path.write_text(text)
-    print(f"[log] Conversion logged → {path}")
+    _write_atomic(path, text)

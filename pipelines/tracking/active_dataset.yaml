@@ -1,0 +1,11 @@
+# Which dataset every tracking script uses when you hit Run in VS Code.
+# Change this one line to switch the whole pipeline; each script prints
+#   Config: <path>  (tracks: <input_version>)
+# as its first line so you can check. Path is relative to the repo root.
+#
+#   configs/tracking/dataset003_icm_te_250914_stack5.yaml   stack 5 (curated)
+#   configs/tracking/dataset003_icm_te_stack8.yaml          stack 8
+#
+# (A terminal run can override it with --config X.yaml. The 04 notebooks
+# still set their own CONFIG_PATH in their first cell.)
+config: configs/tracking/dataset003_icm_te_stack11.yaml
